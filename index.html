@@ -1,0 +1,1009 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>香川県中心 天気予報アプリ</title>
+<style>
+  :root {
+    --bg1: #e9f7ff;
+    --bg2: #fff7df;
+    --card: rgba(255, 255, 255, 0.88);
+    --line: rgba(0, 0, 0, 0.08);
+    --text: #203040;
+    --muted: #667788;
+    --main: #1478b8;
+    --accent: #ffb84d;
+    --danger: #e35d5d;
+    --ok: #2c9f7a;
+    --shadow: 0 18px 45px rgba(25, 70, 110, 0.18);
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    margin: 0;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Hiragino Sans",
+      "Yu Gothic", "YuGothic", sans-serif;
+    color: var(--text);
+    background:
+      radial-gradient(circle at top left, #cbeeff 0, transparent 34%),
+      radial-gradient(circle at bottom right, #ffe7b8 0, transparent 35%),
+      linear-gradient(135deg, var(--bg1), var(--bg2));
+    min-height: 100vh;
+  }
+
+  header {
+    padding: 24px 18px 12px;
+    text-align: center;
+  }
+
+  header h1 {
+    margin: 0;
+    font-size: clamp(1.5rem, 3.8vw, 2.6rem);
+    letter-spacing: 0.04em;
+  }
+
+  header p {
+    margin: 8px 0 0;
+    color: var(--muted);
+    font-size: 0.95rem;
+  }
+
+  .app {
+    width: min(1180px, calc(100% - 24px));
+    margin: 0 auto 40px;
+    display: grid;
+    grid-template-columns: 360px 1fr;
+    gap: 18px;
+  }
+
+  @media (max-width: 900px) {
+    .app {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .panel {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 24px;
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(10px);
+    overflow: hidden;
+  }
+
+  .side {
+    padding: 18px;
+  }
+
+  .controls {
+    display: grid;
+    gap: 12px;
+  }
+
+  label {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #40566c;
+  }
+
+  select, button {
+    width: 100%;
+    font: inherit;
+    border-radius: 14px;
+    border: 1px solid rgba(20, 120, 184, 0.24);
+    background: white;
+    color: var(--text);
+  }
+
+  select {
+    padding: 11px 12px;
+  }
+
+  button {
+    padding: 11px 14px;
+    cursor: pointer;
+    transition: 0.18s ease;
+  }
+
+  button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 20px rgba(20, 120, 184, 0.18);
+  }
+
+  .primary {
+    border: none;
+    color: white;
+    background: linear-gradient(135deg, #178ad4, #0f64a0);
+    font-weight: 800;
+  }
+
+  .ghost {
+    background: rgba(255, 255, 255, 0.72);
+  }
+
+  .tabs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-top: 12px;
+  }
+
+  .tabs button {
+    padding: 10px 8px;
+    font-size: 0.9rem;
+  }
+
+  .tabs button.active {
+    background: #1478b8;
+    color: white;
+    border-color: #1478b8;
+    font-weight: 800;
+  }
+
+  .mapBox {
+    margin-top: 16px;
+    padding: 12px;
+    border-radius: 20px;
+    background: linear-gradient(#dff4ff, #c9ecff);
+    border: 1px solid rgba(20, 120, 184, 0.15);
+  }
+
+  .mapTitle {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
+  .mapTitle strong {
+    font-size: 1rem;
+  }
+
+  .mapTitle span {
+    font-size: 0.78rem;
+    color: var(--muted);
+  }
+
+  svg {
+    width: 100%;
+    height: auto;
+    display: block;
+  }
+
+  .marker {
+    cursor: pointer;
+  }
+
+  .marker circle {
+    fill: #fff;
+    stroke: #1478b8;
+    stroke-width: 2.2;
+  }
+
+  .marker text {
+    font-size: 11px;
+    font-weight: 800;
+    fill: #21445f;
+    paint-order: stroke;
+    stroke: white;
+    stroke-width: 3px;
+    stroke-linejoin: round;
+  }
+
+  .marker:hover circle {
+    fill: #ffcf70;
+  }
+
+  .main {
+    min-width: 0;
+  }
+
+  .hero {
+    padding: 22px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 14px;
+    align-items: center;
+    border-bottom: 1px solid var(--line);
+  }
+
+  @media (max-width: 620px) {
+    .hero {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .place {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .place h2 {
+    margin: 0;
+    font-size: clamp(1.35rem, 3vw, 2rem);
+  }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 10px;
+    border-radius: 999px;
+    background: #eef8ff;
+    color: #126aa8;
+    border: 1px solid rgba(20, 120, 184, 0.16);
+    font-size: 0.78rem;
+    font-weight: 800;
+  }
+
+  .updated {
+    color: var(--muted);
+    font-size: 0.88rem;
+    margin-top: 8px;
+  }
+
+  .bigWeather {
+    text-align: center;
+    min-width: 130px;
+  }
+
+  .emoji {
+    font-size: 4.1rem;
+    line-height: 1;
+  }
+
+  .weatherText {
+    font-weight: 900;
+    font-size: 1.02rem;
+    margin-top: 6px;
+  }
+
+  .content {
+    padding: 18px;
+  }
+
+  .sectionTitle {
+    margin: 4px 0 12px;
+    font-size: 1.08rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+
+  @media (max-width: 720px) {
+    .cards {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .card {
+    background: white;
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    padding: 14px;
+    min-height: 150px;
+  }
+
+  .date {
+    font-size: 0.86rem;
+    color: var(--muted);
+    font-weight: 700;
+  }
+
+  .card .icon {
+    font-size: 2.4rem;
+    margin: 6px 0;
+  }
+
+  .card h3 {
+    margin: 0;
+    font-size: 1.05rem;
+  }
+
+  .mini {
+    margin-top: 8px;
+    display: grid;
+    gap: 5px;
+    color: #40566c;
+    font-size: 0.9rem;
+  }
+
+  .rainBar {
+    height: 10px;
+    background: #e7f3fb;
+    border-radius: 999px;
+    overflow: hidden;
+  }
+
+  .rainBar > div {
+    height: 100%;
+    background: linear-gradient(90deg, #6dc6ff, #0f64a0);
+    width: 0%;
+  }
+
+  .tableWrap {
+    overflow-x: auto;
+    background: white;
+    border: 1px solid var(--line);
+    border-radius: 18px;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 640px;
+  }
+
+  th, td {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--line);
+    text-align: center;
+    font-size: 0.9rem;
+  }
+
+  th {
+    background: #f5fbff;
+    color: #31556f;
+    font-weight: 900;
+  }
+
+  tr:last-child td {
+    border-bottom: none;
+  }
+
+  .comment {
+    margin-top: 14px;
+    padding: 14px;
+    border-radius: 18px;
+    background: #fff9ec;
+    border: 1px solid rgba(255, 184, 77, 0.36);
+    color: #5f4b1f;
+    line-height: 1.7;
+  }
+
+  .links {
+    display: grid;
+    gap: 8px;
+    margin-top: 14px;
+  }
+
+  .smallNote {
+    margin-top: 12px;
+    color: var(--muted);
+    font-size: 0.82rem;
+    line-height: 1.55;
+  }
+
+  .error {
+    color: var(--danger);
+    font-weight: 800;
+  }
+
+  .loading {
+    animation: pulse 1.1s infinite ease-in-out;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 0.55; }
+    50% { opacity: 1; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>香川県中心 天気予報アプリ</h1>
+  <p>気象庁の公開データを読み込み、香川県を中心に今日・明日・週間予報を表示します。</p>
+</header>
+
+<div class="app">
+  <aside class="panel side">
+    <div class="controls">
+      <div>
+        <label for="prefSelect">表示する府県</label>
+        <select id="prefSelect"></select>
+      </div>
+
+      <div>
+        <label for="areaSelect">予報エリア</label>
+        <select id="areaSelect"></select>
+      </div>
+
+      <button class="primary" id="reloadBtn">最新の予報を読み込む</button>
+    </div>
+
+    <div class="tabs" id="prefTabs"></div>
+
+    <div class="mapBox">
+      <div class="mapTitle">
+        <strong>香川県周辺マップ</strong>
+        <span>クリックで近い予報エリアを選択</span>
+      </div>
+
+      <svg viewBox="0 0 330 250" role="img" aria-label="香川県周辺の簡略地図">
+        <defs>
+          <linearGradient id="sea" x1="0" x2="1">
+            <stop offset="0%" stop-color="#bdeaff" />
+            <stop offset="100%" stop-color="#dff7ff" />
+          </linearGradient>
+        </defs>
+
+        <rect x="0" y="0" width="330" height="250" fill="url(#sea)" rx="18"/>
+
+        <!-- 本州側 -->
+        <path d="M8,28 C55,5 122,14 163,35 C200,54 245,36 322,54 L322,0 L8,0 Z"
+          fill="#d6e8c4" stroke="#a5c58d" stroke-width="1.2" opacity="0.85"/>
+
+        <!-- 小豆島 -->
+        <path d="M190,78 C218,63 250,68 266,88 C255,104 215,111 190,99 C181,93 181,84 190,78 Z"
+          fill="#92cf80" stroke="#5aa866" stroke-width="1.4"/>
+
+        <!-- 直島など -->
+        <ellipse cx="143" cy="80" rx="13" ry="7" fill="#92cf80" stroke="#5aa866" stroke-width="1.2"/>
+        <ellipse cx="166" cy="89" rx="9" ry="5" fill="#92cf80" stroke="#5aa866" stroke-width="1.2"/>
+
+        <!-- 四国・香川 -->
+        <path d="M33,153 C53,126 91,126 118,139 C143,151 166,138 190,129 C221,118 270,125 310,147
+          C297,176 261,194 214,190 C168,186 139,205 96,199 C61,194 38,180 33,153 Z"
+          fill="#f7d27b" stroke="#cf9d37" stroke-width="2"/>
+
+        <!-- 徳島・愛媛・高知の雰囲気 -->
+        <path d="M30,174 C64,205 121,213 166,202 C141,236 73,238 28,211 Z"
+          fill="#cce3a4" stroke="#aac47b" stroke-width="1.2" opacity="0.82"/>
+        <path d="M188,191 C235,198 289,183 317,151 C326,190 288,224 234,222 C210,221 190,210 188,191 Z"
+          fill="#cce3a4" stroke="#aac47b" stroke-width="1.2" opacity="0.82"/>
+
+        <text x="18" y="21" font-size="11" fill="#5d7b50" font-weight="800">岡山</text>
+        <text x="245" y="225" font-size="11" fill="#5d7b50" font-weight="800">徳島</text>
+        <text x="42" y="226" font-size="11" fill="#5d7b50" font-weight="800">愛媛</text>
+
+        <g class="marker" data-area="高松" transform="translate(150 141)">
+          <circle r="7"></circle>
+          <text x="10" y="4">高松</text>
+        </g>
+
+        <g class="marker" data-area="小豆" transform="translate(225 88)">
+          <circle r="7"></circle>
+          <text x="10" y="4">小豆島</text>
+        </g>
+
+        <g class="marker" data-area="東讃" transform="translate(257 149)">
+          <circle r="7"></circle>
+          <text x="10" y="4">東讃</text>
+        </g>
+
+        <g class="marker" data-area="中讃" transform="translate(102 157)">
+          <circle r="7"></circle>
+          <text x="-35" y="4">中讃</text>
+        </g>
+
+        <g class="marker" data-area="西讃" transform="translate(65 168)">
+          <circle r="7"></circle>
+          <text x="-35" y="4">西讃</text>
+        </g>
+      </svg>
+    </div>
+
+    <div class="links">
+      <button class="ghost" id="openJmaBtn">気象庁の公式ページを開く</button>
+    </div>
+
+    <div class="smallNote">
+      ※このアプリはブラウザから気象庁データを直接読み込みます。学校・展示・授業用に使う場合は、
+      最終判断は必ず気象庁公式情報で確認してください。
+    </div>
+  </aside>
+
+  <main class="panel main">
+    <section class="hero">
+      <div>
+        <div class="place">
+          <h2 id="title">読み込み中...</h2>
+          <span class="badge" id="officeBadge">JMA</span>
+        </div>
+        <div class="updated" id="updated">データ取得を開始しています。</div>
+      </div>
+
+      <div class="bigWeather">
+        <div class="emoji loading" id="mainEmoji">⛅</div>
+        <div class="weatherText" id="mainWeather">--</div>
+      </div>
+    </section>
+
+    <section class="content">
+      <h3 class="sectionTitle">今日・明日・明後日の予報</h3>
+      <div class="cards" id="dailyCards"></div>
+
+      <h3 class="sectionTitle" style="margin-top:22px;">降水確率・気温</h3>
+      <div class="tableWrap">
+        <table id="detailTable">
+          <thead></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <h3 class="sectionTitle" style="margin-top:22px;">週間予報</h3>
+      <div class="tableWrap">
+        <table id="weeklyTable">
+          <thead></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <div class="comment" id="advice">
+        予報を読み込むと、雨具・暑さ寒さへの一言メモを表示します。
+      </div>
+    </section>
+  </main>
+</div>
+
+<script>
+/*
+  香川県中心 天気予報WEBアプリ
+  - 気象庁の公開JSONを利用
+  - APIキー不要
+  - 1ファイル完結
+*/
+
+const PREFS = [
+  { code: "370000", name: "香川県", center: "高松" },
+  { code: "360000", name: "徳島県", center: "徳島" },
+  { code: "380000", name: "愛媛県", center: "松山" },
+  { code: "390000", name: "高知県", center: "高知" },
+  { code: "330000", name: "岡山県", center: "岡山" },
+  { code: "340000", name: "広島県", center: "広島" }
+];
+
+const state = {
+  prefCode: "370000",
+  raw: null,
+  selectedAreaName: "",
+  selectedTempAreaName: ""
+};
+
+const els = {
+  prefSelect: document.getElementById("prefSelect"),
+  areaSelect: document.getElementById("areaSelect"),
+  reloadBtn: document.getElementById("reloadBtn"),
+  openJmaBtn: document.getElementById("openJmaBtn"),
+  prefTabs: document.getElementById("prefTabs"),
+  title: document.getElementById("title"),
+  officeBadge: document.getElementById("officeBadge"),
+  updated: document.getElementById("updated"),
+  mainEmoji: document.getElementById("mainEmoji"),
+  mainWeather: document.getElementById("mainWeather"),
+  dailyCards: document.getElementById("dailyCards"),
+  detailTable: document.getElementById("detailTable"),
+  weeklyTable: document.getElementById("weeklyTable"),
+  advice: document.getElementById("advice")
+};
+
+function init() {
+  PREFS.forEach(pref => {
+    const opt = document.createElement("option");
+    opt.value = pref.code;
+    opt.textContent = pref.name;
+    els.prefSelect.appendChild(opt);
+  });
+
+  renderPrefTabs();
+
+  els.prefSelect.value = state.prefCode;
+
+  els.prefSelect.addEventListener("change", () => {
+    state.prefCode = els.prefSelect.value;
+    loadForecast();
+  });
+
+  els.areaSelect.addEventListener("change", () => {
+    state.selectedAreaName = els.areaSelect.value;
+    render();
+  });
+
+  els.reloadBtn.addEventListener("click", loadForecast);
+
+  els.openJmaBtn.addEventListener("click", () => {
+    const url = `https://www.jma.go.jp/bosai/forecast/#area_type=offices&area_code=${state.prefCode}`;
+    window.open(url, "_blank");
+  });
+
+  document.querySelectorAll(".marker").forEach(marker => {
+    marker.addEventListener("click", () => {
+      const keyword = marker.dataset.area;
+      selectAreaByKeyword(keyword);
+    });
+  });
+
+  loadForecast();
+}
+
+function renderPrefTabs() {
+  els.prefTabs.innerHTML = "";
+  PREFS.forEach(pref => {
+    const btn = document.createElement("button");
+    btn.textContent = pref.name;
+    btn.className = pref.code === state.prefCode ? "active" : "";
+    btn.addEventListener("click", () => {
+      state.prefCode = pref.code;
+      els.prefSelect.value = pref.code;
+      loadForecast();
+    });
+    els.prefTabs.appendChild(btn);
+  });
+}
+
+async function loadForecast() {
+  renderPrefTabs();
+  setLoading(true);
+
+  const url = `https://www.jma.go.jp/bosai/forecast/data/forecast/${state.prefCode}.json`;
+
+  try {
+    const res = await fetch(url, { cache: "no-store" });
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}`);
+    }
+
+    state.raw = await res.json();
+
+    const weatherAreas = getWeatherAreas();
+    const pref = PREFS.find(p => p.code === state.prefCode);
+
+    state.selectedAreaName =
+      weatherAreas.find(a => a.area.name.includes(pref.center))?.area.name ||
+      weatherAreas[0]?.area.name ||
+      "";
+
+    fillAreaSelect();
+    render();
+  } catch (err) {
+    showError("天気予報データを取得できませんでした。通信状況、または気象庁サイト側の状態を確認してください。");
+    console.error(err);
+  } finally {
+    setLoading(false);
+  }
+}
+
+function setLoading(isLoading) {
+  if (isLoading) {
+    els.title.textContent = "読み込み中...";
+    els.updated.textContent = "気象庁データを取得しています。";
+    els.mainEmoji.textContent = "⛅";
+    els.mainEmoji.classList.add("loading");
+    els.mainWeather.textContent = "--";
+  } else {
+    els.mainEmoji.classList.remove("loading");
+  }
+}
+
+function showError(message) {
+  els.title.textContent = "取得エラー";
+  els.updated.innerHTML = `<span class="error">${message}</span>`;
+  els.dailyCards.innerHTML = "";
+  els.detailTable.querySelector("thead").innerHTML = "";
+  els.detailTable.querySelector("tbody").innerHTML = "";
+  els.weeklyTable.querySelector("thead").innerHTML = "";
+  els.weeklyTable.querySelector("tbody").innerHTML = "";
+  els.advice.textContent = "少し時間をおいて再読み込みしてください。";
+}
+
+function fillAreaSelect() {
+  els.areaSelect.innerHTML = "";
+  const names = getWeatherAreas().map(a => a.area.name);
+
+  names.forEach(name => {
+    const opt = document.createElement("option");
+    opt.value = name;
+    opt.textContent = name;
+    els.areaSelect.appendChild(opt);
+  });
+
+  els.areaSelect.value = state.selectedAreaName;
+}
+
+function render() {
+  if (!state.raw) return;
+
+  const pref = PREFS.find(p => p.code === state.prefCode);
+  const publishingOffice = state.raw[0]?.publishingOffice || "";
+  const reportDatetime = state.raw[0]?.reportDatetime || "";
+
+  const selectedWeather = findArea(getWeatherAreas(), state.selectedAreaName);
+  const todayWeather = selectedWeather?.weathers?.[0] || "予報なし";
+
+  els.title.textContent = `${pref.name}・${state.selectedAreaName}`;
+  els.officeBadge.textContent = publishingOffice || "気象庁";
+  els.updated.textContent = `発表：${formatDateTime(reportDatetime)}`;
+  els.mainEmoji.textContent = weatherEmoji(todayWeather);
+  els.mainWeather.textContent = cleanWeather(todayWeather);
+
+  renderDailyCards();
+  renderDetailTable();
+  renderWeeklyTable();
+  renderAdvice(todayWeather);
+}
+
+function getWeatherAreas() {
+  return state.raw?.[0]?.timeSeries?.[0]?.areas || [];
+}
+
+function getPopAreas() {
+  return state.raw?.[0]?.timeSeries?.[1]?.areas || [];
+}
+
+function getTempAreas() {
+  return state.raw?.[0]?.timeSeries?.[2]?.areas || [];
+}
+
+function findArea(areas, name) {
+  if (!areas || areas.length === 0) return null;
+
+  return areas.find(a => a.area.name === name)
+      || areas.find(a => name && a.area.name.includes(name))
+      || areas.find(a => name && name.includes(a.area.name))
+      || areas[0];
+}
+
+function selectAreaByKeyword(keyword) {
+  const weatherAreas = getWeatherAreas();
+  if (!weatherAreas.length) return;
+
+  const found =
+    weatherAreas.find(a => a.area.name.includes(keyword)) ||
+    weatherAreas.find(a => keyword.includes(a.area.name)) ||
+    weatherAreas[0];
+
+  state.selectedAreaName = found.area.name;
+  els.areaSelect.value = found.area.name;
+  render();
+}
+
+function renderDailyCards() {
+  const ts = state.raw[0]?.timeSeries?.[0];
+  const times = ts?.timeDefines || [];
+  const area = findArea(ts?.areas || [], state.selectedAreaName);
+  const weathers = area?.weathers || [];
+  const winds = area?.winds || [];
+  const waves = area?.waves || [];
+
+  els.dailyCards.innerHTML = "";
+
+  const labels = ["今日", "明日", "明後日"];
+
+  for (let i = 0; i < Math.min(3, times.length); i++) {
+    const weather = weathers[i] || "予報なし";
+    const card = document.createElement("div");
+    card.className = "card";
+
+    card.innerHTML = `
+      <div class="date">${labels[i] || ""}　${formatDate(times[i])}</div>
+      <div class="icon">${weatherEmoji(weather)}</div>
+      <h3>${cleanWeather(weather)}</h3>
+      <div class="mini">
+        <div>風：${winds[i] || "--"}</div>
+        <div>波：${waves[i] || "--"}</div>
+      </div>
+    `;
+
+    els.dailyCards.appendChild(card);
+  }
+}
+
+function renderDetailTable() {
+  const thead = els.detailTable.querySelector("thead");
+  const tbody = els.detailTable.querySelector("tbody");
+  thead.innerHTML = "";
+  tbody.innerHTML = "";
+
+  const popTs = state.raw[0]?.timeSeries?.[1];
+  const popTimes = popTs?.timeDefines || [];
+  const popArea = findArea(popTs?.areas || [], state.selectedAreaName);
+  const pops = popArea?.pops || [];
+
+  const tempTs = state.raw[0]?.timeSeries?.[2];
+  const tempTimes = tempTs?.timeDefines || [];
+  const tempArea =
+    findArea(tempTs?.areas || [], state.selectedAreaName) ||
+    tempTs?.areas?.[0];
+
+  const temps = tempArea?.temps || [];
+
+  thead.innerHTML = `
+    <tr>
+      <th>項目</th>
+      ${popTimes.map(t => `<th>${formatShortTime(t)}</th>`).join("")}
+    </tr>
+  `;
+
+  tbody.innerHTML += `
+    <tr>
+      <td><strong>降水確率</strong></td>
+      ${popTimes.map((t, i) => {
+        const p = pops[i] || "--";
+        const width = Number.isFinite(Number(p)) ? Number(p) : 0;
+        return `
+          <td>
+            ${p}${p === "--" ? "" : "%"}
+            <div class="rainBar"><div style="width:${width}%"></div></div>
+          </td>
+        `;
+      }).join("")}
+    </tr>
+  `;
+
+  if (temps.length > 0) {
+    tbody.innerHTML += `
+      <tr>
+        <td><strong>気温</strong><br><small>${tempArea?.area?.name || ""}</small></td>
+        ${popTimes.map((t, i) => {
+          const matchedIndex = findTimeIndex(tempTimes, t);
+          const temp = temps[matchedIndex] ?? "";
+          return `<td>${temp !== "" ? temp + "℃" : "--"}</td>`;
+        }).join("")}
+      </tr>
+    `;
+  }
+}
+
+function renderWeeklyTable() {
+  const thead = els.weeklyTable.querySelector("thead");
+  const tbody = els.weeklyTable.querySelector("tbody");
+  thead.innerHTML = "";
+  tbody.innerHTML = "";
+
+  const weeklyWeatherTs = state.raw[1]?.timeSeries?.[0];
+  const weeklyTempTs = state.raw[1]?.timeSeries?.[1];
+
+  if (!weeklyWeatherTs) {
+    thead.innerHTML = "<tr><th>週間予報</th></tr>";
+    tbody.innerHTML = "<tr><td>週間予報データが見つかりませんでした。</td></tr>";
+    return;
+  }
+
+  const times = weeklyWeatherTs.timeDefines || [];
+  const area = findArea(weeklyWeatherTs.areas || [], state.selectedAreaName);
+  const tempArea = findArea(weeklyTempTs?.areas || [], state.selectedAreaName);
+
+  const weathers = area?.weathers || [];
+  const pops = area?.pops || [];
+  const reliabilities = area?.reliabilities || [];
+  const tempsMin = tempArea?.tempsMin || [];
+  const tempsMax = tempArea?.tempsMax || [];
+
+  thead.innerHTML = `
+    <tr>
+      <th>日付</th>
+      <th>天気</th>
+      <th>降水確率</th>
+      <th>信頼度</th>
+      <th>最低</th>
+      <th>最高</th>
+    </tr>
+  `;
+
+  tbody.innerHTML = times.map((t, i) => `
+    <tr>
+      <td>${formatDate(t)}</td>
+      <td>${weatherEmoji(weathers[i])} ${cleanWeather(weathers[i] || "--")}</td>
+      <td>${pops[i] || "--"}${pops[i] ? "%" : ""}</td>
+      <td>${reliabilities[i] || "--"}</td>
+      <td>${tempsMin[i] || "--"}${tempsMin[i] ? "℃" : ""}</td>
+      <td>${tempsMax[i] || "--"}${tempsMax[i] ? "℃" : ""}</td>
+    </tr>
+  `).join("");
+}
+
+function renderAdvice(weather) {
+  const text = weather || "";
+
+  let message = "穏やかな予報でも、瀬戸内海沿岸では風や波の変化に注意してください。";
+
+  if (text.includes("雨") || text.includes("雪")) {
+    message = "雨や雪の予報が含まれています。移動や屋外活動では、雨具と足元への注意を忘れないようにしましょう。";
+  } else if (text.includes("くもり") || text.includes("曇")) {
+    message = "雲が多めの予報です。屋外活動では、急な天気の変化に備えて折りたたみ傘があると安心です。";
+  } else if (text.includes("晴")) {
+    message = "晴れの時間がありそうです。日差しが強い季節は、帽子・水分補給・暑さ対策を意識しましょう。";
+  }
+
+  els.advice.textContent = message;
+}
+
+function weatherEmoji(text) {
+  if (!text) return "⛅";
+  if (text.includes("雷")) return "⛈️";
+  if (text.includes("雪")) return "❄️";
+  if (text.includes("雨")) return "☔";
+  if (text.includes("くもり") || text.includes("曇")) {
+    if (text.includes("晴")) return "🌥️";
+    return "☁️";
+  }
+  if (text.includes("晴")) return "☀️";
+  return "⛅";
+}
+
+function cleanWeather(text) {
+  if (!text) return "--";
+  return text
+    .replace(/\s+/g, " ")
+    .replace(/　/g, " ")
+    .trim();
+}
+
+function formatDateTime(iso) {
+  if (!iso) return "--";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+
+  return new Intl.DateTimeFormat("ja-JP", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    weekday: "short"
+  }).format(d);
+}
+
+function formatDate(iso) {
+  if (!iso) return "--";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+
+  return new Intl.DateTimeFormat("ja-JP", {
+    month: "numeric",
+    day: "numeric",
+    weekday: "short"
+  }).format(d);
+}
+
+function formatShortTime(iso) {
+  if (!iso) return "--";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+
+  return new Intl.DateTimeFormat("ja-JP", {
+    month: "numeric",
+    day: "numeric",
+    hour: "2-digit"
+  }).format(d);
+}
+
+function findTimeIndex(times, target) {
+  if (!times || !target) return -1;
+  const targetDate = new Date(target);
+  if (Number.isNaN(targetDate.getTime())) return -1;
+
+  let bestIndex = -1;
+  let bestDiff = Infinity;
+
+  times.forEach((t, i) => {
+    const d = new Date(t);
+    if (Number.isNaN(d.getTime())) return;
+    const diff = Math.abs(d.getTime() - targetDate.getTime());
+    if (diff < bestDiff) {
+      bestDiff = diff;
+      bestIndex = i;
+    }
+  });
+
+  return bestIndex;
+}
+
+init();
+</script>
+</body>
+</html>
