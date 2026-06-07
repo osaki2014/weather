@@ -3,11 +3,13 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>雨雲レーダー・天気図・時系列グラフ 観測点表示版</title>
+  <title>雨雲レーダー・天気図・時系列グラフ 3D地図面つき雲頂強調版</title>
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.9/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
   <style>
     :root{
       --bg:#f5f7fb; --panel:#fff; --ink:#1f2937; --muted:#64748b; --line:#dbe3ef; --accent:#2563eb;
@@ -32,13 +34,20 @@
     .leaflet-pane.rain-pane-strong img{filter:saturate(2.8) contrast(2.2) brightness(1.08)}
     .leaflet-pane.rain-nd-pane img{filter:contrast(1.15) brightness(1.05)}
     .leaflet-pane.wx-pane img{filter:saturate(1.05) contrast(1.05)}
-    .leaflet-pane.himawari-vis-pane img{filter:grayscale(0.15) contrast(1.25) brightness(1.08)}
+    .leaflet-pane.himawari-vis-pane img{filter:grayscale(0.10) contrast(1.25) brightness(1.08)}
     .leaflet-pane.himawari-cloud-pane img{filter:saturate(1.25) contrast(1.18) brightness(1.02)}
     .value{display:inline-block;min-width:3.2em;text-align:right;color:#2563eb;font-weight:700}
     .wideLabel{min-width:240px}
     .obs-dot{background:#ef4444;border:3px solid #fff;border-radius:999px;box-shadow:0 0 0 2px #11182755}
     .obs-label{background:#ffffffee;border:1px solid #94a3b8;border-radius:6px;padding:2px 6px;font-size:12px;font-weight:700;color:#1f2937;box-shadow:0 2px 8px #00000022;white-space:nowrap}
-    @media(max-width:900px){.grid{grid-template-columns:1fr}.map{height:45vh}}
+
+    .threeWrap{height:520px;min-height:420px;background:linear-gradient(180deg,#e0f2fe,#f8fafc);position:relative}
+    #cloud3dCanvas{width:100%;height:100%;display:block}
+    .threeControls{display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:10px 12px;border-bottom:1px solid var(--line);background:#ffffffdd}
+    .threeStatus{font-size:12px;color:var(--muted);padding:8px 12px;border-top:1px solid var(--line);background:#fff;white-space:pre-wrap}
+    .smallBtn{padding:6px 10px;border:1px solid #94a3b8;border-radius:8px;background:#fff;cursor:pointer}
+    .smallBtn:hover{background:#eff6ff}
+    @media(max-width:900px){.grid{grid-template-columns:1fr}.map{height:45vh}.threeWrap{height:420px}}
   </style>
 </head>
 <body>
@@ -107,6 +116,28 @@
       <div class="chartWrap"><canvas id="chartRegion"></canvas></div>
     </div>
   </section>
+
+  <section class="card">
+    <div class="cardHead"><h2>3D雲頂強調画像</h2><div class="status" id="cloud3dHeadStatus">雲頂強調画像の色を高さに変換して立体表示します</div></div>
+    <div class="threeControls">
+      <label>3D対象：
+        <select id="cloud3dTarget">
+          <option value="region" selected>右側の地域地図</option>
+          <option value="japan">日本全体地図</option>
+        </select>
+      </label>
+      <label class="wideLabel">高さ倍率 <span id="cloud3dHeightScaleVal" class="value">55</span><input id="cloud3dHeightScale" type="range" min="5" max="160" step="1" value="55"></label>
+      <label class="wideLabel">解像度 <span id="cloud3dResolutionVal" class="value">96</span><input id="cloud3dResolution" type="range" min="48" max="180" step="4" value="96"></label>
+      <label><input id="cloud3dWireToggle" type="checkbox"> ワイヤー表示</label>
+      <label class="wideLabel">雲画像透明度 <span id="cloud3dOpacityVal" class="value">0.68</span><input id="cloud3dOpacity" type="range" min="0.15" max="1" step="0.01" value="0.68"></label>
+      <label class="wideLabel">地図透明度 <span id="cloud3dBaseOpacityVal" class="value">1.00</span><input id="cloud3dBaseOpacity" type="range" min="0" max="1" step="0.01" value="1.00"></label>
+      <button id="buildCloud3dBtn" type="button" class="smallBtn">現在時刻で3D作成</button>
+      <button id="resetCloud3dViewBtn" type="button" class="smallBtn">3D視点リセット</button>
+    </div>
+    <div class="threeWrap"><div id="cloud3dCanvas"></div></div>
+    <div id="cloud3dStatus" class="threeStatus">「現在時刻で3D作成」を押すと、高さ0の地図面の上に、透過した雲頂強調画像を3Dメッシュとして重ねます。</div>
+  </section>
+
 </main>
 
 <script>
@@ -123,6 +154,7 @@ const JAPAN_POINT = {name:'日本全土の代表点（東京）', lat:35.6812, l
 const JMA = 'https://www.jma.go.jp';
 const WXMAP_BASE = `${JMA}/bosai/weather_map/data/png/`;
 const NOWC_TILE_TEMPLATE = `${JMA}/bosai/jmatile/data/nowc/{base}/none/{valid}/surf/{element}/{z}/{x}/{y}.png`;
+
 const HIMAWARI_TILE_TEMPLATE = `${JMA}/bosai/himawari/data/satimg/{base}/jp/{valid}/{band}/{prod}/{z}/{x}/{y}.jpg`;
 const HIMAWARI_PRODUCTS = {
   visible:{label:'ひまわり可視', band:'B03', prod:'ALBD', pane:'himawariVisPane', zIndex:420},
@@ -131,6 +163,7 @@ const HIMAWARI_PRODUCTS = {
 
 let mapJapan, mapRegion, charts = {}, rainLayers = [], wxLayers = [], himawariLayers = [], obsLayers = [], nowcTimes = [], wxMaps = [], himawariTimes = [], timeRows = [];
 let selectedIndex = 0;
+let cloud3d = {renderer:null, scene:null, camera:null, controls:null, mesh:null, texture:null, baseMesh:null, baseTexture:null, lastCanvas:null, lastBaseCanvas:null, lastMosaic:null, lastSat:null, animationId:null};
 
 function fmtTime(d){ return new Intl.DateTimeFormat('ja-JP',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}).format(d); }
 function parseJmaUTC(s){ return new Date(Date.UTC(+s.slice(0,4), +s.slice(4,6)-1, +s.slice(6,8), +s.slice(8,10), +s.slice(10,12), +s.slice(12,14))); }
@@ -237,7 +270,6 @@ function buildChart(canvasId, rows, title){
 
 function clearLayerArray(arr){ arr.forEach(l => { try{l.remove();}catch(e){} }); arr.length = 0; }
 let radarTileStats = {loaded:0, error:0};
-let himawariTileStats = {loaded:0, error:0};
 
 function updateRainPaneStyle(){
   [mapJapan, mapRegion].forEach(m => {
@@ -334,47 +366,6 @@ function addRadar(map, time){
   }
 }
 
-
-function makeHimawariTileUrl(time, product){
-  return HIMAWARI_TILE_TEMPLATE
-    .replace('{base}', time.base)
-    .replace('{valid}', time.valid)
-    .replace('{band}', product.band)
-    .replace('{prod}', product.prod);
-}
-
-function addOneHimawariLayer(map, time, productKey){
-  const product = HIMAWARI_PRODUCTS[productKey];
-  if(!product) return;
-  const url = makeHimawariTileUrl(time, product);
-  const layer = L.tileLayer(url, {
-    minZoom:3,
-    maxZoom:18,
-    minNativeZoom:6,
-    maxNativeZoom:6,
-    opacity:+document.getElementById('himawariOpacity').value,
-    zIndex:product.zIndex,
-    pane:product.pane,
-    detectRetina:false,
-    keepBuffer:2,
-    attribution:`気象庁 ${product.label}`
-  });
-  layer.on('tileload', () => { himawariTileStats.loaded++; updateDebugLine(); });
-  layer.on('tileerror', () => { himawariTileStats.error++; updateDebugLine(); });
-  layer.addTo(map);
-  himawariLayers.push(layer);
-  setTimeout(() => { try{ layer.redraw(); }catch(e){} }, 80);
-}
-
-function addHimawariLayers(map, time){
-  if(document.getElementById('himawariVisibleToggle').checked){
-    addOneHimawariLayer(map, time, 'visible');
-  }
-  if(document.getElementById('himawariCloudTopToggle').checked){
-    addOneHimawariLayer(map, time, 'cloudTop');
-  }
-}
-
 const RotatableImageOverlay = L.ImageOverlay.extend({
   options:{rotationDeg:0},
   _reset:function(){
@@ -454,7 +445,9 @@ function updateOverlays(){
   const wx = closestByTime(wxMaps, t);
   const sat = closestByTime(himawariTimes, t);
   // 衛星画像→天気図→雨雲レーダーの順に追加し、雨雲レーダーを必ず上に載せます。
-  if(sat && (document.getElementById('himawariVisibleToggle').checked || document.getElementById('himawariCloudTopToggle').checked)){ addHimawariLayers(mapJapan, sat); addHimawariLayers(mapRegion, sat); }
+  if(sat && (document.getElementById('himawariVisibleToggle').checked || document.getElementById('himawariCloudTopToggle').checked)){
+    addHimawariLayers(mapJapan, sat); addHimawariLayers(mapRegion, sat);
+  }
   if(document.getElementById('chartToggle').checked && wx){ addWxMap(mapJapan, wx); addWxMap(mapRegion, wx); }
   if(document.getElementById('rainToggle').checked && nowc){ addRadar(mapJapan, nowc); addRadar(mapRegion, nowc); }
   updateObservationPoints();
@@ -467,6 +460,7 @@ function updateOverlays(){
   Object.values(charts).forEach(c => c.draw());
   updateTuneValueLabels();
   forceMapAndOverlayRefresh();
+  if(document.getElementById('cloud3dAutoToggle')?.checked){ setTimeout(buildCloud3d, 120); }
 }
 
 function updateDebugLine(){
@@ -487,6 +481,409 @@ function updateDebugLine(){
     `衛星タイル読込 ${himawariTileStats.loaded}件 / エラー ${himawariTileStats.error}件。` +
     `雨雲表示=${document.getElementById('radarMode').value}。` +
     `雨雲URL例: ${sample} / ひまわりURL例: ${satSample}`;
+}
+
+
+function updateCloud3dLabels(){
+  const h = document.getElementById('cloud3dHeightScale');
+  const r = document.getElementById('cloud3dResolution');
+  const o = document.getElementById('cloud3dOpacity');
+  const bo = document.getElementById('cloud3dBaseOpacity');
+  if(h) document.getElementById('cloud3dHeightScaleVal').textContent = h.value;
+  if(r) document.getElementById('cloud3dResolutionVal').textContent = r.value;
+  if(o) document.getElementById('cloud3dOpacityVal').textContent = (+o.value).toFixed(2);
+  if(bo) document.getElementById('cloud3dBaseOpacityVal').textContent = (+bo.value).toFixed(2);
+}
+
+function lonLatToTileXY(lon, lat, z){
+  const latRad = lat * Math.PI / 180;
+  const n = Math.pow(2, z);
+  const x = Math.floor((lon + 180) / 360 * n);
+  const y = Math.floor((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2 * n);
+  return {x: Math.max(0, Math.min(n-1, x)), y: Math.max(0, Math.min(n-1, y))};
+}
+
+function getCloud3dMap(){
+  return document.getElementById('cloud3dTarget').value === 'japan' ? mapJapan : mapRegion;
+}
+
+function limitTileRange(minX, maxX, minY, maxY, maxTiles){
+  let width = maxX - minX + 1;
+  let height = maxY - minY + 1;
+  while(width * height > maxTiles){
+    if(width >= height && width > 1){ minX++; maxX--; }
+    else if(height > 1){ minY++; maxY--; }
+    width = maxX - minX + 1;
+    height = maxY - minY + 1;
+  }
+  return {minX, maxX, minY, maxY};
+}
+
+function loadImageForCanvas(url){
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error('画像タイルを読み込めません: ' + url));
+    img.src = url;
+  });
+}
+
+
+function makeHimawariTileUrl(time, product){
+  return HIMAWARI_TILE_TEMPLATE
+    .replace('{base}', time.base)
+    .replace('{valid}', time.valid)
+    .replace('{band}', product.band)
+    .replace('{prod}', product.prod);
+}
+
+let himawariTileStats = {loaded:0, error:0};
+
+function addOneHimawariLayer(map, time, productKey){
+  const product = HIMAWARI_PRODUCTS[productKey];
+  if(!product) return;
+  const url = makeHimawariTileUrl(time, product);
+  const layer = L.tileLayer(url, {
+    minZoom:3,
+    maxZoom:18,
+    minNativeZoom:6,
+    maxNativeZoom:6,
+    opacity:+document.getElementById('himawariOpacity').value,
+    zIndex:product.zIndex,
+    pane:product.pane,
+    detectRetina:false,
+    keepBuffer:2,
+    attribution:`気象庁 ${product.label}`
+  });
+  layer.on('tileload', () => { himawariTileStats.loaded++; updateDebugLine(); });
+  layer.on('tileerror', () => { himawariTileStats.error++; updateDebugLine(); });
+  layer.addTo(map);
+  himawariLayers.push(layer);
+  setTimeout(() => { try{ layer.redraw(); }catch(e){} }, 80);
+}
+
+function addHimawariLayers(map, time){
+  if(document.getElementById('himawariVisibleToggle').checked){
+    addOneHimawariLayer(map, time, 'visible');
+  }
+  if(document.getElementById('himawariCloudTopToggle').checked){
+    addOneHimawariLayer(map, time, 'cloudTop');
+  }
+}
+
+async function buildCloudTopMosaic(sat, map){
+  const tileZ = 6; // 気象庁ひまわりJPタイルの標準解像度として扱う
+  const b = map.getBounds();
+  const nw = lonLatToTileXY(b.getWest(), b.getNorth(), tileZ);
+  const se = lonLatToTileXY(b.getEast(), b.getSouth(), tileZ);
+  let minX = Math.min(nw.x, se.x), maxX = Math.max(nw.x, se.x);
+  let minY = Math.min(nw.y, se.y), maxY = Math.max(nw.y, se.y);
+  ({minX, maxX, minY, maxY} = limitTileRange(minX, maxX, minY, maxY, 48));
+  const tileSize = 256;
+  const canvas = document.createElement('canvas');
+  canvas.width = (maxX - minX + 1) * tileSize;
+  canvas.height = (maxY - minY + 1) * tileSize;
+  const ctx = canvas.getContext('2d');
+  let ok = 0, fail = 0;
+  const product = HIMAWARI_PRODUCTS.cloudTop;
+  for(let y=minY; y<=maxY; y++){
+    for(let x=minX; x<=maxX; x++){
+      const url = makeHimawariTileUrl(sat, product).replace('{z}', tileZ).replace('{x}', x).replace('{y}', y);
+      try{
+        const img = await loadImageForCanvas(url);
+        ctx.drawImage(img, (x-minX)*tileSize, (y-minY)*tileSize, tileSize, tileSize);
+        ok++;
+      }catch(e){
+        fail++;
+      }
+    }
+  }
+  if(ok === 0) throw new Error('雲頂強調画像タイルを取得できませんでした。時刻を変えるか、しばらく待って再読み込みしてください。');
+  return {canvas, ok, fail, tileZ, minX, maxX, minY, maxY};
+}
+
+
+async function buildGsiBaseMapMosaic(mosaic){
+  // 3D表示の高さ0面に貼る地図です。上のLeaflet地図と同じ地理院淡色地図を、雲頂強調画像と同じタイル範囲で合成します。
+  const tileSize = 256;
+  const canvas = document.createElement('canvas');
+  canvas.width = mosaic.canvas.width;
+  canvas.height = mosaic.canvas.height;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#dbeafe';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  let ok = 0, fail = 0;
+  for(let y=mosaic.minY; y<=mosaic.maxY; y++){
+    for(let x=mosaic.minX; x<=mosaic.maxX; x++){
+      const url = `https://cyberjapandata.gsi.go.jp/xyz/pale/${mosaic.tileZ}/${x}/${y}.png`;
+      try{
+        const img = await loadImageForCanvas(url);
+        ctx.drawImage(img, (x-mosaic.minX)*tileSize, (y-mosaic.minY)*tileSize, tileSize, tileSize);
+        ok++;
+      }catch(e){
+        fail++;
+      }
+    }
+  }
+  return {canvas, ok, fail};
+}
+
+function colorToCloudHeight(r,g,b){
+  // 雲頂強調画像は「色の違い」が雲頂の冷たさ・高さの目安になるので、彩度と明るさを合わせて高さ化します。
+  const rn=r/255, gn=g/255, bn=b/255;
+  const max=Math.max(rn,gn,bn), min=Math.min(rn,gn,bn);
+  const sat = max === 0 ? 0 : (max-min)/max;
+  const lum = 0.2126*rn + 0.7152*gn + 0.0722*bn;
+  const colorContrast = Math.abs(rn-gn) + Math.abs(gn-bn) + Math.abs(bn-rn);
+  let h = sat*0.72 + lum*0.38 + colorContrast*0.18 - 0.18;
+  // 黒に近い宇宙・海面・背景は低くする
+  if(lum < 0.08) h *= 0.15;
+  return Math.max(0, Math.min(1, h));
+}
+
+
+
+// 3D表示用の簡略化した日本列島の輪郭線です。雲頂強調メッシュ上に黄色で重ねます。
+const JAPAN_OUTLINES = [
+  // 北海道
+  [[141.0,45.5],[142.0,45.4],[143.2,44.7],[145.0,43.4],[145.4,42.9],[144.4,42.0],[143.2,41.7],[141.8,42.0],[140.6,42.6],[140.4,43.4],[141.0,44.2],[141.0,45.5]],
+  // 本州
+  [[140.9,41.5],[140.2,40.7],[139.7,40.1],[139.1,39.5],[138.8,38.8],[138.4,38.2],[137.6,37.5],[136.8,37.2],[136.1,36.8],[135.5,35.7],[134.9,35.5],[134.0,35.6],[133.2,35.4],[132.5,34.8],[131.9,34.4],[131.2,34.1],[130.9,33.9],[131.6,34.3],[132.8,34.2],[133.9,34.1],[135.0,34.5],[136.0,34.7],[137.0,34.6],[138.0,34.8],[138.9,35.1],[139.8,35.5],[140.6,36.2],[141.1,37.1],[141.0,38.2],[141.6,39.0],[141.8,40.0],[141.3,40.8],[140.9,41.5]],
+  // 四国
+  [[132.0,34.4],[133.0,34.3],[134.0,34.4],[134.9,34.3],[134.7,33.8],[133.8,33.4],[132.9,33.2],[132.0,33.4],[131.8,33.8],[132.0,34.4]],
+  // 九州
+  [[130.8,33.9],[131.4,33.5],[131.8,32.9],[131.5,32.2],[130.9,31.5],[130.4,31.0],[130.0,31.3],[129.6,32.0],[129.7,32.7],[130.1,33.2],[130.8,33.9]],
+  // 沖縄本島付近
+  [[127.6,26.8],[128.1,26.7],[128.3,26.3],[127.9,26.1],[127.5,26.2],[127.2,26.5],[127.6,26.8]]
+];
+
+function tileXYToLonLat(x, y, z){
+  const n = Math.pow(2, z);
+  const lon = x / n * 360 - 180;
+  const latRad = Math.atan(Math.sinh(Math.PI * (1 - 2 * y / n)));
+  return {lon, lat: latRad * 180 / Math.PI};
+}
+
+function lonLatToGlobalPixel(lon, lat, z){
+  const latRad = lat * Math.PI / 180;
+  const n = Math.pow(2, z);
+  const x = (lon + 180) / 360 * n * 256;
+  const y = (1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2 * n * 256;
+  return {x, y};
+}
+
+function addJapanOutlineToCloud3d(mosaic, meshWidth, meshDepth, zHeight){
+  ensureCloud3dRenderer();
+  if(cloud3d.outline){ cloud3d.scene.remove(cloud3d.outline); }
+  const group = new THREE.Group();
+  const mat = new THREE.LineBasicMaterial({color:0xffff00, linewidth:3, depthTest:false});
+  const left = mosaic.minX * 256;
+  const top = mosaic.minY * 256;
+  const cw = mosaic.canvas.width;
+  const ch = mosaic.canvas.height;
+  JAPAN_OUTLINES.forEach(poly => {
+    const pts = [];
+    poly.forEach(([lon,lat]) => {
+      const p = lonLatToGlobalPixel(lon, lat, mosaic.tileZ);
+      const px = p.x - left;
+      const py = p.y - top;
+      if(px >= -20 && px <= cw + 20 && py >= -20 && py <= ch + 20){
+        const x = (px / cw - 0.5) * meshWidth;
+        const y = (0.5 - py / ch) * meshDepth;
+        pts.push(new THREE.Vector3(x, y, zHeight));
+      }
+    });
+    if(pts.length >= 2){
+      const geom = new THREE.BufferGeometry().setFromPoints(pts);
+      const line = new THREE.Line(geom, mat);
+      line.renderOrder = 999;
+      group.add(line);
+    }
+  });
+  cloud3d.outline = group;
+  cloud3d.scene.add(group);
+}
+
+function ensureCloud3dRenderer(){
+  if(typeof THREE === 'undefined') throw new Error('Three.jsを読み込めませんでした。インターネット接続またはCDNへのアクセスを確認してください。');
+  const host = document.getElementById('cloud3dCanvas');
+  if(!cloud3d.renderer){
+    cloud3d.scene = new THREE.Scene();
+    cloud3d.scene.background = new THREE.Color(0xeaf6ff);
+    cloud3d.camera = new THREE.PerspectiveCamera(45, host.clientWidth / host.clientHeight, 0.1, 3000);
+    cloud3d.camera.position.set(0, -230, 160);
+    cloud3d.renderer = new THREE.WebGLRenderer({antialias:true});
+    cloud3d.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    cloud3d.renderer.setSize(host.clientWidth, host.clientHeight);
+    host.innerHTML = '';
+    host.appendChild(cloud3d.renderer.domElement);
+    if(!THREE.OrbitControls) throw new Error('OrbitControlsを読み込めませんでした。Three.js examples のCDN読み込みを確認してください。');
+    cloud3d.controls = new THREE.OrbitControls(cloud3d.camera, cloud3d.renderer.domElement);
+    cloud3d.controls.target.set(0,0,20);
+    cloud3d.controls.enableDamping = true;
+    const amb = new THREE.AmbientLight(0xffffff, 0.8);
+    cloud3d.scene.add(amb);
+    const dir = new THREE.DirectionalLight(0xffffff, 0.7);
+    dir.position.set(100,-120,180);
+    cloud3d.scene.add(dir);
+    const grid = new THREE.GridHelper(240, 24, 0x94a3b8, 0xcbd5e1);
+    grid.rotation.x = Math.PI / 2;
+    grid.position.z = -2;
+    cloud3d.scene.add(grid);
+    const animate = () => {
+      cloud3d.animationId = requestAnimationFrame(animate);
+      if(cloud3d.controls) cloud3d.controls.update();
+      cloud3d.renderer.render(cloud3d.scene, cloud3d.camera);
+    };
+    animate();
+  }
+  resizeCloud3dRenderer();
+}
+
+function resizeCloud3dRenderer(){
+  if(!cloud3d.renderer) return;
+  const host = document.getElementById('cloud3dCanvas');
+  const w = host.clientWidth || 800;
+  const h = host.clientHeight || 500;
+  cloud3d.camera.aspect = w / h;
+  cloud3d.camera.updateProjectionMatrix();
+  cloud3d.renderer.setSize(w, h);
+}
+
+function resetCloud3dView(){
+  ensureCloud3dRenderer();
+  cloud3d.camera.position.set(0, -230, 160);
+  cloud3d.controls.target.set(0,0,20);
+  cloud3d.controls.update();
+}
+
+function createCloud3dMeshFromCanvas(canvas, mosaic=null, baseCanvas=null){
+  ensureCloud3dRenderer();
+
+  if(cloud3d.mesh){
+    cloud3d.scene.remove(cloud3d.mesh);
+    cloud3d.mesh.geometry.dispose();
+    cloud3d.mesh.material.dispose();
+  }
+  if(cloud3d.baseMesh){
+    cloud3d.scene.remove(cloud3d.baseMesh);
+    cloud3d.baseMesh.geometry.dispose();
+    cloud3d.baseMesh.material.dispose();
+  }
+  if(cloud3d.texture){ cloud3d.texture.dispose(); }
+  if(cloud3d.baseTexture){ cloud3d.baseTexture.dispose(); }
+
+  const res = +document.getElementById('cloud3dResolution').value || 96;
+  const heightScale = +document.getElementById('cloud3dHeightScale').value || 55;
+  const cloudOpacity = +document.getElementById('cloud3dOpacity').value || 0.68;
+  const baseOpacity = +document.getElementById('cloud3dBaseOpacity').value || 1.0;
+  const wire = document.getElementById('cloud3dWireToggle').checked;
+
+  const sample = document.createElement('canvas');
+  sample.width = res;
+  sample.height = res;
+  const sctx = sample.getContext('2d');
+  sctx.drawImage(canvas, 0, 0, res, res);
+
+  let img;
+  try{
+    img = sctx.getImageData(0,0,res,res);
+  }catch(e){
+    throw new Error('ブラウザのCORS制限により画像の画素値を読めませんでした。http://localhost:8000 で開き直してください。それでも出る場合は、気象庁側のCORS設定で3D化だけが制限されています。');
+  }
+
+  const aspect = canvas.width / canvas.height;
+  const width = 220;
+  const depth = width / aspect;
+
+  // 高さ0の地図面
+  if(baseCanvas){
+    const baseTexCanvas = document.createElement('canvas');
+    baseTexCanvas.width = 1024;
+    baseTexCanvas.height = 1024;
+    baseTexCanvas.getContext('2d').drawImage(baseCanvas, 0, 0, 1024, 1024);
+    cloud3d.baseTexture = new THREE.CanvasTexture(baseTexCanvas);
+    cloud3d.baseTexture.needsUpdate = true;
+
+    const baseGeom = new THREE.PlaneGeometry(width, depth, 1, 1);
+    const baseMat = new THREE.MeshBasicMaterial({
+      map: cloud3d.baseTexture,
+      side: THREE.DoubleSide,
+      transparent: true,
+      opacity: baseOpacity
+    });
+    cloud3d.baseMesh = new THREE.Mesh(baseGeom, baseMat);
+    cloud3d.baseMesh.position.z = -0.8;
+    cloud3d.scene.add(cloud3d.baseMesh);
+  }
+
+  // 透過した雲頂強調画像を高さつきメッシュにする
+  const texCanvas = document.createElement('canvas');
+  texCanvas.width = 1024;
+  texCanvas.height = 1024;
+  texCanvas.getContext('2d').drawImage(canvas, 0, 0, 1024, 1024);
+  cloud3d.texture = new THREE.CanvasTexture(texCanvas);
+  cloud3d.texture.needsUpdate = true;
+
+  const geom = new THREE.PlaneGeometry(width, depth, res-1, res-1);
+  const pos = geom.attributes.position;
+  for(let j=0; j<res; j++){
+    for(let i=0; i<res; i++){
+      const idx = (j*res + i)*4;
+      const r = img.data[idx], g = img.data[idx+1], b = img.data[idx+2];
+      const h = colorToCloudHeight(r,g,b) * heightScale;
+      const v = j*res + i;
+      pos.setZ(v, h);
+    }
+  }
+  geom.computeVertexNormals();
+
+  const mat = new THREE.MeshPhongMaterial({
+    map: cloud3d.texture,
+    side: THREE.DoubleSide,
+    wireframe: wire,
+    shininess: 18,
+    transparent: !wire,
+    opacity: wire ? 1.0 : cloudOpacity,
+    depthWrite: wire ? true : false
+  });
+  cloud3d.mesh = new THREE.Mesh(geom, mat);
+  cloud3d.mesh.position.z = 0;
+  cloud3d.scene.add(cloud3d.mesh);
+
+  cloud3d.lastCanvas = canvas;
+  cloud3d.lastBaseCanvas = baseCanvas;
+  cloud3d.lastMosaic = mosaic;
+}
+
+async function buildCloud3d(){
+  const status = document.getElementById('cloud3dStatus');
+  try{
+    updateCloud3dLabels();
+    const row = timeRows[selectedIndex];
+    if(!row) throw new Error('時系列データがまだ読み込まれていません。');
+    const sat = closestByTime(himawariTimes, row.date);
+    if(!sat) throw new Error('ひまわり時刻データがありません。');
+    const map = getCloud3dMap();
+    const targetLabel = document.getElementById('cloud3dTarget').value === 'japan' ? '日本全体' : REGIONS[document.getElementById('regionSelect').value].name;
+    status.textContent = `3D作成中：${targetLabel} / 衛星 ${fmtTime(sat.date)} の雲頂強調画像タイルを読み込み中...`;
+    const mosaic = await buildCloudTopMosaic(sat, map);
+    status.textContent = `3D作成中：${targetLabel} / 高さ0の地図タイルを合成中...`;
+    const baseMosaic = await buildGsiBaseMapMosaic(mosaic);
+    createCloud3dMeshFromCanvas(mosaic.canvas, mosaic, baseMosaic.canvas);
+    cloud3d.lastSat = sat;
+    document.getElementById('cloud3dHeadStatus').textContent = `${targetLabel} / ${fmtTime(sat.date)} の雲頂強調を3D化`;
+    status.textContent = `3D作成完了：${targetLabel} / 衛星 ${fmtTime(sat.date)} / 雲タイル成功 ${mosaic.ok}件・失敗 ${mosaic.fail}件 / 地図タイル成功 ${baseMosaic.ok}件・失敗 ${baseMosaic.fail}件 / タイル範囲 z${mosaic.tileZ} x${mosaic.minX}-${mosaic.maxX} y${mosaic.minY}-${mosaic.maxY}\n操作：ドラッグで回転、ホイールで拡大縮小、右ドラッグで移動。高さ0に地図を貼り、その上に雲頂強調画像を透過メッシュとして重ねています。高さは雲頂強調画像の色を簡易的に数値化したもので、実高度そのものではありません。`;
+  }catch(e){
+    console.error(e);
+    status.textContent = '3D作成に失敗しました：' + e.message;
+  }
+}
+
+function refreshCloud3dMaterial(){
+  if(!cloud3d.lastCanvas) return;
+  try{ createCloud3dMeshFromCanvas(cloud3d.lastCanvas, cloud3d.lastMosaic, cloud3d.lastBaseCanvas); }catch(e){ console.error(e); }
 }
 
 async function reloadAll(){
@@ -517,13 +914,19 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('timeSlider').addEventListener('input', e => {selectedIndex=+e.target.value; updateOverlays();});
   document.getElementById('regionSelect').addEventListener('change', reloadAll);
   document.getElementById('reloadBtn').addEventListener('click', reloadAll);
-  ['rainToggle','chartToggle','himawariVisibleToggle','himawariCloudTopToggle','rainOpacity','himawariOpacity','wxOpacity','wxScaleX','wxScaleY','wxLonOffset','wxLatOffset','wxRotate','rainEnhance','radarMode'].forEach(id => {
+  ['rainToggle','chartToggle','himawariVisibleToggle','himawariCloudTopToggle','himawariOpacity','rainOpacity','wxOpacity','wxScaleX','wxScaleY','wxLonOffset','wxLatOffset','wxRotate','rainEnhance','radarMode'].forEach(id => {
     document.getElementById(id).addEventListener('input', () => { updateTuneValueLabels(); updateOverlays(); });
   });
   document.getElementById('wxResetBtn').addEventListener('click', resetWeatherMapTuning);
-  window.addEventListener('resize', forceMapAndOverlayRefresh);
+  document.getElementById('buildCloud3dBtn').addEventListener('click', buildCloud3d);
+  document.getElementById('resetCloud3dViewBtn').addEventListener('click', resetCloud3dView);
+  ['cloud3dHeightScale','cloud3dResolution','cloud3dWireToggle','cloud3dOpacity','cloud3dBaseOpacity','cloud3dTarget'].forEach(id => {
+    document.getElementById(id).addEventListener('input', () => { updateCloud3dLabels(); if(cloud3d.lastCanvas && id !== 'cloud3dTarget') refreshCloud3dMaterial(); });
+  });
+  window.addEventListener('resize', () => { forceMapAndOverlayRefresh(); resizeCloud3dRenderer(); });
   window.addEventListener('load', () => setTimeout(forceMapAndOverlayRefresh, 250));
   updateTuneValueLabels();
+  updateCloud3dLabels();
   reloadAll();
 });
 </script>
