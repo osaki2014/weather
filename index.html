@@ -32,6 +32,8 @@
     .leaflet-pane.rain-pane-strong img{filter:saturate(2.8) contrast(2.2) brightness(1.08)}
     .leaflet-pane.rain-nd-pane img{filter:contrast(1.15) brightness(1.05)}
     .leaflet-pane.wx-pane img{filter:saturate(1.05) contrast(1.05)}
+    .leaflet-pane.himawari-vis-pane img{filter:grayscale(0.15) contrast(1.25) brightness(1.08)}
+    .leaflet-pane.himawari-cloud-pane img{filter:saturate(1.25) contrast(1.18) brightness(1.02)}
     .value{display:inline-block;min-width:3.2em;text-align:right;color:#2563eb;font-weight:700}
     .wideLabel{min-width:240px}
     .obs-dot{background:#ef4444;border:3px solid #fff;border-radius:999px;box-shadow:0 0 0 2px #11182755}
@@ -59,6 +61,9 @@
     </label>
     <label><input id="rainToggle" type="checkbox" checked> 雨雲レーダー</label>
     <label><input id="chartToggle" type="checkbox" checked> 気象庁天気図</label>
+    <label><input id="himawariVisibleToggle" type="checkbox"> ひまわり可視</label>
+    <label><input id="himawariCloudTopToggle" type="checkbox"> ひまわり雲頂強調</label>
+    <label>衛星透明度 <input id="himawariOpacity" type="range" min="0" max="1" step="0.05" value="0.55"></label>
     <label>雨雲透明度 <input id="rainOpacity" type="range" min="0" max="1" step="0.05" value="1"></label>
     <label>天気図透明度 <input id="wxOpacity" type="range" min="0" max="1" step="0.05" value="0.34"></label>
     <label class="wideLabel">天気図 横倍率 <span id="wxScaleXVal" class="value">0.70</span><input id="wxScaleX" type="range" min="0.40" max="3.50" step="0.01" value="0.70"></label>
@@ -118,8 +123,13 @@ const JAPAN_POINT = {name:'日本全土の代表点（東京）', lat:35.6812, l
 const JMA = 'https://www.jma.go.jp';
 const WXMAP_BASE = `${JMA}/bosai/weather_map/data/png/`;
 const NOWC_TILE_TEMPLATE = `${JMA}/bosai/jmatile/data/nowc/{base}/none/{valid}/surf/{element}/{z}/{x}/{y}.png`;
+const HIMAWARI_TILE_TEMPLATE = `${JMA}/bosai/himawari/data/satimg/{base}/jp/{valid}/{band}/{prod}/{z}/{x}/{y}.jpg`;
+const HIMAWARI_PRODUCTS = {
+  visible:{label:'ひまわり可視', band:'B03', prod:'ALBD', pane:'himawariVisPane', zIndex:420},
+  cloudTop:{label:'ひまわり雲頂強調', band:'SND', prod:'ETC', pane:'himawariCloudPane', zIndex:430}
+};
 
-let mapJapan, mapRegion, charts = {}, rainLayers = [], wxLayers = [], obsLayers = [], nowcTimes = [], wxMaps = [], timeRows = [];
+let mapJapan, mapRegion, charts = {}, rainLayers = [], wxLayers = [], himawariLayers = [], obsLayers = [], nowcTimes = [], wxMaps = [], himawariTimes = [], timeRows = [];
 let selectedIndex = 0;
 
 function fmtTime(d){ return new Intl.DateTimeFormat('ja-JP',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}).format(d); }
@@ -132,6 +142,8 @@ function initMaps(){
   mapJapan = L.map('mapJapan', {zoomControl:true}).setView([37.5, 137.5], 4); // 初期状態で雨雲レーダーが見えるよう、マイナスを1回押した相当のズーム
   mapRegion = L.map('mapRegion', {zoomControl:true}).setView([REGIONS.kagawa.lat, REGIONS.kagawa.lon], REGIONS.kagawa.zoom);
   [mapJapan, mapRegion].forEach(m => {
+    m.createPane('himawariVisPane'); m.getPane('himawariVisPane').style.zIndex = 420; m.getPane('himawariVisPane').classList.add('himawari-vis-pane');
+    m.createPane('himawariCloudPane'); m.getPane('himawariCloudPane').style.zIndex = 430; m.getPane('himawariCloudPane').classList.add('himawari-cloud-pane');
     m.createPane('wxPane'); m.getPane('wxPane').style.zIndex = 450; m.getPane('wxPane').classList.add('wx-pane');
     m.createPane('rainNDPane'); m.getPane('rainNDPane').style.zIndex = 740; m.getPane('rainNDPane').classList.add('rain-nd-pane');
     m.createPane('rainPane'); m.getPane('rainPane').style.zIndex = 780; m.getPane('rainPane').classList.add('rain-pane-strong');
@@ -176,6 +188,15 @@ async function loadWeatherMaps(){
   console.log('weather maps', wxMaps.length, wxMaps[0], wxMaps[wxMaps.length-1]);
 }
 
+
+async function loadHimawariTimes(){
+  const list = await fetchJson(`${JMA}/bosai/himawari/data/satimg/targetTimes_jp.json`);
+  himawariTimes = list
+    .map(x => ({base:x.basetime, valid:x.validtime, date:parseJmaUTC(x.validtime)}))
+    .sort((a,b)=>a.date-b.date);
+  console.log('himawari times', himawariTimes.length, himawariTimes[0], himawariTimes[himawariTimes.length-1]);
+}
+
 async function loadWeatherSeries(place){
   // Open-Meteo の JMA MSM/GSM ベースAPI。1日前〜明日までを時間単位で取得。
   const url = new URL('https://api.open-meteo.com/v1/jma');
@@ -216,6 +237,7 @@ function buildChart(canvasId, rows, title){
 
 function clearLayerArray(arr){ arr.forEach(l => { try{l.remove();}catch(e){} }); arr.length = 0; }
 let radarTileStats = {loaded:0, error:0};
+let himawariTileStats = {loaded:0, error:0};
 
 function updateRainPaneStyle(){
   [mapJapan, mapRegion].forEach(m => {
@@ -263,6 +285,7 @@ function forceMapAndOverlayRefresh(){
   const refresh = () => {
     maps.forEach(m => m.invalidateSize(true));
     rainLayers.forEach(l => { try{ l.redraw(); }catch(e){} });
+    himawariLayers.forEach(l => { try{ l.redraw(); }catch(e){} });
   };
   refresh();
   setTimeout(refresh, 80);
@@ -308,6 +331,47 @@ function addRadar(map, time){
   }
   if(mode === 'both' || mode === 'hrpns'){
     addOneRadarLayer(map, time, 'hrpns', 'rainPane', rainOpacity, 780);
+  }
+}
+
+
+function makeHimawariTileUrl(time, product){
+  return HIMAWARI_TILE_TEMPLATE
+    .replace('{base}', time.base)
+    .replace('{valid}', time.valid)
+    .replace('{band}', product.band)
+    .replace('{prod}', product.prod);
+}
+
+function addOneHimawariLayer(map, time, productKey){
+  const product = HIMAWARI_PRODUCTS[productKey];
+  if(!product) return;
+  const url = makeHimawariTileUrl(time, product);
+  const layer = L.tileLayer(url, {
+    minZoom:3,
+    maxZoom:18,
+    minNativeZoom:6,
+    maxNativeZoom:6,
+    opacity:+document.getElementById('himawariOpacity').value,
+    zIndex:product.zIndex,
+    pane:product.pane,
+    detectRetina:false,
+    keepBuffer:2,
+    attribution:`気象庁 ${product.label}`
+  });
+  layer.on('tileload', () => { himawariTileStats.loaded++; updateDebugLine(); });
+  layer.on('tileerror', () => { himawariTileStats.error++; updateDebugLine(); });
+  layer.addTo(map);
+  himawariLayers.push(layer);
+  setTimeout(() => { try{ layer.redraw(); }catch(e){} }, 80);
+}
+
+function addHimawariLayers(map, time){
+  if(document.getElementById('himawariVisibleToggle').checked){
+    addOneHimawariLayer(map, time, 'visible');
+  }
+  if(document.getElementById('himawariCloudTopToggle').checked){
+    addOneHimawariLayer(map, time, 'cloudTop');
   }
 }
 
@@ -383,11 +447,14 @@ function updateOverlays(){
   const row = timeRows[selectedIndex];
   const t = row.date;
   document.getElementById('selectedTime').textContent = fmtTime(t);
-  clearLayerArray(rainLayers); clearLayerArray(wxLayers);
+  clearLayerArray(rainLayers); clearLayerArray(wxLayers); clearLayerArray(himawariLayers);
   radarTileStats = {loaded:0, error:0};
+  himawariTileStats = {loaded:0, error:0};
   const nowc = closestByTime(nowcTimes, t);
   const wx = closestByTime(wxMaps, t);
-  // 天気図を先に追加し、雨雲レーダーを必ず上に載せます。
+  const sat = closestByTime(himawariTimes, t);
+  // 衛星画像→天気図→雨雲レーダーの順に追加し、雨雲レーダーを必ず上に載せます。
+  if(sat && (document.getElementById('himawariVisibleToggle').checked || document.getElementById('himawariCloudTopToggle').checked)){ addHimawariLayers(mapJapan, sat); addHimawariLayers(mapRegion, sat); }
   if(document.getElementById('chartToggle').checked && wx){ addWxMap(mapJapan, wx); addWxMap(mapRegion, wx); }
   if(document.getElementById('rainToggle').checked && nowc){ addRadar(mapJapan, nowc); addRadar(mapRegion, nowc); }
   updateObservationPoints();
@@ -407,20 +474,26 @@ function updateDebugLine(){
   const t = row ? row.date : new Date();
   const nowc = closestByTime(nowcTimes, t);
   const wx = closestByTime(wxMaps, t);
+  const sat = closestByTime(himawariTimes, t);
   const sample = nowc
     ? makeNowcTileUrl(nowc, 'hrpns').replace('{z}', 5).replace('{x}', 27).replace('{y}', 12)
     : 'なし';
+  const satSample = sat
+    ? makeHimawariTileUrl(sat, HIMAWARI_PRODUCTS.cloudTop).replace('{z}', 6).replace('{x}', 55).replace('{y}', 25)
+    : 'なし';
   document.getElementById('debugBox').textContent =
-    `取得：雨雲レーダー ${nowcTimes.length}件、天気図 ${wxMaps.length}件。` +
-    `雨雲タイル読込 ${radarTileStats.loaded}件 / エラー ${radarTileStats.error}件。雨雲表示=${document.getElementById('radarMode').value}。` +
-    `表示中タイルURL例: ${sample}`;
+    `取得：雨雲レーダー ${nowcTimes.length}件、天気図 ${wxMaps.length}件、ひまわり ${himawariTimes.length}件。` +
+    `雨雲タイル読込 ${radarTileStats.loaded}件 / エラー ${radarTileStats.error}件。` +
+    `衛星タイル読込 ${himawariTileStats.loaded}件 / エラー ${himawariTileStats.error}件。` +
+    `雨雲表示=${document.getElementById('radarMode').value}。` +
+    `雨雲URL例: ${sample} / ひまわりURL例: ${satSample}`;
 }
 
 async function reloadAll(){
   const errorBox = document.getElementById('errorBox'); errorBox.textContent = '';
   document.getElementById('timeSlider').disabled = true;
   try{
-    await Promise.all([loadNowcTimes(), loadWeatherMaps()]);
+    await Promise.all([loadNowcTimes(), loadWeatherMaps(), loadHimawariTimes()]);
     const reg = REGIONS[document.getElementById('regionSelect').value];
     document.getElementById('regionTitle').textContent = reg.name;
     mapRegion.setView([reg.lat, reg.lon], reg.zoom);
@@ -444,7 +517,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('timeSlider').addEventListener('input', e => {selectedIndex=+e.target.value; updateOverlays();});
   document.getElementById('regionSelect').addEventListener('change', reloadAll);
   document.getElementById('reloadBtn').addEventListener('click', reloadAll);
-  ['rainToggle','chartToggle','rainOpacity','wxOpacity','wxScaleX','wxScaleY','wxLonOffset','wxLatOffset','wxRotate','rainEnhance','radarMode'].forEach(id => {
+  ['rainToggle','chartToggle','himawariVisibleToggle','himawariCloudTopToggle','rainOpacity','himawariOpacity','wxOpacity','wxScaleX','wxScaleY','wxLonOffset','wxLatOffset','wxRotate','rainEnhance','radarMode'].forEach(id => {
     document.getElementById(id).addEventListener('input', () => { updateTuneValueLabels(); updateOverlays(); });
   });
   document.getElementById('wxResetBtn').addEventListener('click', resetWeatherMapTuning);
