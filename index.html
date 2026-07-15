@@ -122,7 +122,7 @@
       <span class="chip"><span class="sw rain"></span>降水量 mm/h</span>
     </div>
     <div class="wbgtLegend">
-      <div class="wbgtNote">地図上の数値は各地点の暑さ指数WBGT（環境省・実況推定値／予測値）で、トラックバーの選択時刻に最も近い値を表示します。<b>左（全国）＝各県庁所在地、右（地域）＝選択した県内の全公表地点</b>を、色と数値のみでオーバーレイします。数値の色は下表の区分に対応し、<b>35 を超える場合は黒地に白の太字（熱中症特別警戒）</b>で表示します。ツールバーの「暑さ指数」チェックで表示ON/OFFできます。</div>
+      <div class="wbgtNote">地図上の数値は各地点の暑さ指数WBGT（環境省）で、トラックバーの選択時刻に最も近い値を表示します。<b>左（全国）＝各県庁所在地（実況推定値・過去24時間。未来の時刻では直近の実況値を表示）、右（地域）＝選択した県内の全公表地点（実況推定値＋予測値）</b>を、色と数値のみでオーバーレイします。数値の色は下表の区分に対応し、<b>35 を超える場合は黒地に白の太字（熱中症特別警戒）</b>で表示します。ツールバーの「暑さ指数」チェックで表示ON/OFFできます。</div>
       <div id="wbgtScale" class="wbgtScale"></div>
     </div>
     <div id="errorBox" class="error"></div>
@@ -167,8 +167,8 @@
 </main>
 
 <script>
-// wbgtPoints は右側地図に色と数値を出す、その県内の公表アメダス地点番号（気温観測点）。
-// 香川県は全公表地点（高松・香南・滝宮・多度津・内海・引田・財田）。他地域は当面その代表点。
+// 右側地図の暑さ指数は、wbgtNo の上2桁（都道府県コード）を使って県内全公表地点を一括取得します。
+// （環境省APIは複数地点番号の指定で400になるため、都道府県単位=location_type=2 で取得します）
 const REGIONS = {
   kagawa:{name:'香川県・高松', lat:34.3428, lon:134.0466, zoom:8, wbgtNo:72086, prefName:'香川県',
           wbgtPoints:[72086,72126,72121,72111,72061,72146,72161]},
@@ -319,29 +319,23 @@ async function loadWeatherSeries(place){
 }
 
 // ===== 暑さ指数(WBGT) =====
-function fmtApiTime(d){ const z=n=>String(n).padStart(2,'0'); return `${d.getFullYear()}${z(d.getMonth()+1)}${z(d.getDate())}${z(d.getHours())}${z(d.getMinutes())}${z(d.getSeconds())}`; }
-function parseApiTime(s){ return new Date(String(s).replace(/\//g,'-').replace(' ','T')); } // "YYYY/MM/DD HH:MM:SS"(JST)
+// APIの日時はJST基準なので、閲覧環境のタイムゾーンに依存しないようUTC+9で組み立てます。
+function fmtApiTime(d){ const j=new Date(d.getTime()+9*3600*1000); const z=n=>String(n).padStart(2,'0'); return `${j.getUTCFullYear()}${z(j.getUTCMonth()+1)}${z(j.getUTCDate())}${z(j.getUTCHours())}${z(j.getUTCMinutes())}${z(j.getUTCSeconds())}`; }
+function parseApiTime(s){ return new Date(String(s).replace(/\//g,'-').replace(' ','T') + '+09:00'); } // "YYYY/MM/DD HH:MM:SS"(JST)
 
-// 環境省APIは成功(200)時はCORSを許可しますが、無効な地点番号などでは400（CORSヘッダ無し）になります。
-// まず直接取得を試み、失敗したら複数のCORSプロキシ経由で再試行します（file://で開いた場合の保険）。
+// 環境省API（https://www.wbgt.env.go.jp/api/v1）の制約（実測で確認）:
+//  ・成功(200)時はCORSを許可するので、GitHub Pages等から直接取得できます（CORSプロキシ不要）。
+//  ・wbgt_nos / pref_cds に複数値を渡すと 400 Bad Request になるため、常に単一値で呼びます。
+//    地点をまとめて取るときは location_type=2（都道府県別）または 3（全地点）を使います。
+//    pref_cds の都道府県コード＝アメダス地点番号の上2桁（例: 高松72086→72、東京→44）。
+//  ・一部の地点番号（例: 東京44132）はAPI側のデータに存在しないため、
+//    全国表示では同じ県内で最も近い地点にフォールバックします。
 async function fetchWbgtJson(apiUrl){
-  try{
-    const r = await fetch(apiUrl, {cache:'no-store'});
-    if(r.ok){ const j = await r.json(); if(j && j.status === 'success') return j; if(j && j.status === 'error') throw new Error(j.errMsg||'WBGT error'); }
-  }catch(e){ /* CORS/ネットワーク。プロキシにフォールバック */ }
-  const proxies = [
-    u => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u),
-    u => 'https://api.codetabs.com/v1/proxy/?quest=' + encodeURIComponent(u)
-  ];
-  for(const mk of proxies){
-    try{
-      const r2 = await fetch(mk(apiUrl), {cache:'no-store'});
-      if(!r2.ok) continue;
-      const j2 = await r2.json();
-      if(j2 && j2.status === 'success') return j2;
-    }catch(e){ /* 次のプロキシへ */ }
-  }
-  throw new Error('WBGT取得失敗');
+  const r = await fetch(apiUrl, {cache:'no-store'});
+  if(!r.ok) throw new Error(`WBGT API ${r.status}`);
+  const j = await r.json();
+  if(j && j.status === 'success') return j;
+  throw new Error((j && j.errMsg) || 'WBGT取得失敗');
 }
 
 // アメダス地点表を取得して {地点番号: {lat, lon, name}} を作ります（緯度経度は[度,分]→10進変換）。
@@ -357,35 +351,22 @@ async function ensureAmedasTable(){
   return amedasTable;
 }
 function amedasCoord(no){ return amedasTable ? amedasTable[String(no)] : null; }
+// 都道府県コード＝アメダス地点番号の上2桁（例: 72086 → 72）
+function prefCdOf(no){ return Math.floor(no/1000); }
 
-// 複数地点の「実況推定値（過去1日）＋予測値（最新発表分）」を1回のリクエストで取得し、
-// 地点番号ごとの時系列 Map(no -> [{date,wbgt}]) を返します。nos は地点番号の配列。
-async function fetchWbgtSeriesForNos(nos){
-  const now = new Date();
-  const past = fmtApiTime(new Date(now.getTime() - 24*3600*1000));
-  const nowS = fmtApiTime(now);
-  // 予測は「発表時刻」で検索するため、範囲の終端は現在時刻まで（未来にすると400になります）。
-  const foreFrom = fmtApiTime(new Date(now.getTime() - 24*3600*1000));
-  const q = nos.map(n => `wbgt_nos=${n}`).join('&');
-  const survUrl = `${WBGT_API}/getSurveyData?data_type=0&location_type=1&${q}&date_from=${past}&date_to=${nowS}`;
-  const foreUrl = `${WBGT_API}/getForecastData?location_type=1&${q}&date_search_type=1&range_date_from=${foreFrom}&range_date_to=${nowS}`;
-
+// APIレスポンス（実況推定値＋予測値）を地点番号ごとの時系列 Map(no -> [{date,wbgt}]) に集約します。
+function buildSeriesMap(survData, foreData){
   const perPoint = new Map(); // no -> Map(timeMs -> wbgt)
   const getMap = no => { const k=String(no); if(!perPoint.has(k)) perPoint.set(k, new Map()); return perPoint.get(k); };
-
-  const [surv, fore] = await Promise.allSettled([fetchWbgtJson(survUrl), fetchWbgtJson(foreUrl)]);
-
-  if(surv.status === 'fulfilled'){
-    (surv.value.data || []).forEach(d => {
-      const v = parseFloat(d.wbgt_WO);           // 実況推定値は実数値（例 "28.5"）
-      const t = parseApiTime(d.wbgt_date).getTime();
-      if(!isNaN(v) && !isNaN(t)) getMap(d.wbgt_no).set(t, v);
-    });
-  }
-  if(fore.status === 'fulfilled'){
+  (survData || []).forEach(d => {
+    const v = parseFloat(d.wbgt_WO);             // 実況推定値は実数値（例 "28.5"）
+    const t = parseApiTime(d.wbgt_date).getTime();
+    if(!isNaN(v) && !isNaN(t)) getMap(d.wbgt_no).set(t, v);
+  });
+  if(foreData){
     // 予測時刻ごとに最新の発表時刻の値を採用。過去は実況を優先し上書きしません。
     const latest = new Map(); // `${no}_${ft}` -> {ref, val, no, ft}
-    (fore.value.data || []).forEach(d => {
+    foreData.forEach(d => {
       const ft = parseApiTime(d.forecast_time).getTime();
       const ref = parseApiTime(d.reference_time).getTime();
       const val = parseFloat(d.forecast_val) / 10; // 予測値は10倍表現（例 "286"→28.6）
@@ -396,28 +377,70 @@ async function fetchWbgtSeriesForNos(nos){
     });
     latest.forEach(o => { const m = getMap(o.no); if(!m.has(o.ft)) m.set(o.ft, o.val); });
   }
-
   const out = new Map();
   perPoint.forEach((m, no) => {
     const series = [...m.entries()].map(([t,wbgt]) => ({date:new Date(t), wbgt})).sort((a,b)=>a.date-b.date);
     if(series.length) out.set(no, series);
   });
+  return out;
+}
+
+// 右側地図用：選択地域の県内全地点の「実況推定値（過去24時間）＋予測値」を
+// 都道府県コード単位（location_type=2）の2リクエストで取得します。
+async function loadWbgtPref(prefCd){
+  const now = new Date();
+  const past = fmtApiTime(new Date(now.getTime() - 24*3600*1000));
+  const nowS = fmtApiTime(now);
+  const survUrl = `${WBGT_API}/getSurveyData?data_type=0&location_type=2&pref_cds=${prefCd}&date_from=${past}&date_to=${nowS}`;
+  // 予測は「発表時刻」で検索するため、範囲の終端は現在時刻まで（未来にすると400になります）。
+  const foreUrl = `${WBGT_API}/getForecastData?location_type=2&pref_cds=${prefCd}&date_search_type=1&range_date_from=${past}&range_date_to=${nowS}`;
+  const [surv, fore] = await Promise.allSettled([fetchWbgtJson(survUrl), fetchWbgtJson(foreUrl)]);
+  if(surv.status !== 'fulfilled' && fore.status !== 'fulfilled') throw (surv.reason || new Error('WBGT取得失敗'));
+  const out = buildSeriesMap(
+    surv.status === 'fulfilled' ? surv.value.data : null,
+    fore.status === 'fulfilled' ? fore.value.data : null
+  );
   if(!out.size) throw new Error('WBGTデータが空です');
   return out;
 }
 
-// バッチ取得を試み、失敗（無効な地点番号が混ざると400になる等）した場合は
-// 地点ごとに個別取得して、取得できた地点だけを集約します。
-async function loadWbgtGroup(nos){
-  try{
-    return await fetchWbgtSeriesForNos(nos);
-  }catch(e){
-    const results = await Promise.allSettled(nos.map(n => fetchWbgtSeriesForNos([n])));
-    const out = new Map();
-    results.forEach(r => { if(r.status === 'fulfilled') r.value.forEach((s, no) => out.set(no, s)); });
-    if(!out.size) throw e;
-    return out;
+// 左側地図用：全地点（location_type=3）の実況推定値を1リクエストで取得し、
+// 県庁所在地の地点だけを残します（APIに無い地点は同県内で最も近い地点で代替）。
+// 1回の取得上限（25,000件）にかかった場合は取得期間を段階的に短くして再試行します。
+async function loadWbgtNational(){
+  const now = new Date();
+  let lastErr = null;
+  for(const hours of [24, 6, 2]){
+    try{
+      const from = fmtApiTime(new Date(now.getTime() - hours*3600*1000));
+      const j = await fetchWbgtJson(`${WBGT_API}/getSurveyData?data_type=0&location_type=3&date_from=${from}&date_to=${fmtApiTime(now)}`);
+      const all = buildSeriesMap(j.data, null);
+      return pickCapitalSeries(all);
+    }catch(e){ lastErr = e; }
   }
+  throw lastErr || new Error('WBGT取得失敗');
+}
+
+// 全地点の時系列から、県庁所在地（または同県内で県庁所在地に最も近い地点）を1県1地点選びます。
+function pickCapitalSeries(all){
+  const out = new Map();
+  for(const cap of CAPITAL_POINTS){
+    const key = String(cap.no);
+    if(all.has(key)){ out.set(key, all.get(key)); continue; }
+    const capC = amedasCoord(cap.no);   // 県庁所在地の座標（アメダス地点表から）
+    const pref = prefCdOf(cap.no);
+    let bestNo = null, bestD = Infinity;
+    all.forEach((series, no) => {
+      if(prefCdOf(+no) !== pref) return;
+      const c = amedasCoord(no);
+      if(!c || !capC) return;
+      const d = (c.lat-capC.lat)*(c.lat-capC.lat) + (c.lon-capC.lon)*(c.lon-capC.lon);
+      if(d < bestD){ bestD = d; bestNo = no; }
+    });
+    if(bestNo) out.set(bestNo, all.get(bestNo));
+  }
+  if(!out.size) throw new Error('WBGTデータが空です');
+  return out;
 }
 
 async function reloadWbgt(){
@@ -425,10 +448,10 @@ async function reloadWbgt(){
   const reg = REGIONS[document.getElementById('regionSelect').value];
   try{ await ensureAmedasTable(); }catch(e){ /* 座標表が無くても後続はtryする */ }
   const jobs = [
-    loadWbgtGroup(CAPITAL_POINTS.map(p=>p.no))
+    loadWbgtNational()
       .then(g=>{wbgtGroups.national=g; wbgtStatus.national='';})
       .catch(e=>{wbgtGroups.national=null; wbgtStatus.national=e.message;}),
-    loadWbgtGroup(reg.wbgtPoints || [reg.wbgtNo])
+    loadWbgtPref(prefCdOf(reg.wbgtNo))
       .then(g=>{wbgtGroups.pref=g; wbgtStatus.pref='';})
       .catch(e=>{wbgtGroups.pref=null; wbgtStatus.pref=e.message;})
   ];
