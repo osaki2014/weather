@@ -16,23 +16,41 @@
     }
     *{box-sizing:border-box}
     body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu Gothic",Meiryo,sans-serif;background:var(--bg);color:var(--ink)}
-    header{padding:16px 20px;background:linear-gradient(90deg,#eff6ff,#fff);border-bottom:1px solid var(--line)}
-    h1{font-size:20px;margin:0 0 6px} .note{font-size:13px;color:var(--muted);line-height:1.55}
-    main{padding:14px;display:grid;gap:14px}
-    .toolbar,.sliderBox{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px;box-shadow:0 3px 12px #00000008}
-    .toolbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
-    label{font-size:13px;color:#334155} select,input[type="checkbox"]{font-size:14px} select{padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:white}
-    .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-    .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:0 3px 12px #00000008}
-    .cardHead{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--line)}
-    .cardHead h2{font-size:16px;margin:0}.status{font-size:12px;color:var(--muted);text-align:right}
-    .map{height:48vh;min-height:360px;background:#dbeafe}
-    .chartWrap{height:260px;padding:10px}
+    header{padding:8px 14px;background:linear-gradient(90deg,#eff6ff,#fff);border-bottom:1px solid var(--line)}
+    h1{font-size:16px;margin:0 0 3px} .note{font-size:11.5px;color:var(--muted);line-height:1.45}
+    main{padding:6px;display:grid;gap:6px}
+    .toolbar,.sliderBox{background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:5px 8px;box-shadow:0 2px 8px #00000008}
+    .advNote{font-size:11px;color:var(--muted);flex-basis:100%}
+    .toolbar{display:flex;gap:5px 12px;align-items:center;flex-wrap:wrap}
+    label{font-size:12px;color:#334155} select,input[type="checkbox"]{font-size:12px} select{padding:2px 6px;border:1px solid var(--line);border-radius:6px;background:white}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+    .card{background:var(--panel);border:1px solid var(--line);border-radius:9px;overflow:hidden;box-shadow:0 2px 8px #00000008}
+    .cardHead{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:4px 8px;border-bottom:1px solid var(--line)}
+    .cardHead h2{font-size:13px;margin:0}.status{font-size:10.5px;color:var(--muted);text-align:right}
+    .map{height:44vh;min-height:300px;background:#dbeafe}
+    .chartWrap{height:240px;padding:4px 6px}
+    /* 折りたたみの詳細設定（普段は畳んで上部を占有しない） */
+    details.adv{flex:1 0 100%;margin:0}
+    details.adv>summary{cursor:pointer;font-size:11.5px;color:var(--accent);padding:1px 0;user-select:none;list-style:none}
+    details.adv>summary::-webkit-details-marker{display:none}
+    details.adv>summary::before{content:'▸ ';font-size:10px}
+    details.adv[open]>summary::before{content:'▾ '}
+    details.adv .advBody{display:flex;flex-wrap:wrap;gap:4px 12px;padding:5px 0 1px;align-items:center}
+    .toolbar input[type="range"],.advBody input[type="range"]{width:104px;vertical-align:middle}
     /* グラフ面はクリック／タッチで時刻を操作。touch-action:pan-y で縦スクロールは残しつつ横ドラッグを拾う */
     .chartWrap canvas{touch-action:pan-y;cursor:ew-resize}
     .chartWrap canvas.scrubbing{cursor:grabbing}
     input[type="range"]{width:100%}.timeLabel{font-weight:700;color:var(--accent)}
-    .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-top:6px}.chip{display:inline-flex;align-items:center;gap:5px}.sw{width:18px;height:3px;border-radius:999px;background:#999}.sw.temp{background:#ef4444}.sw.hum{background:#2563eb}.sw.rain{background:#0ea5e9}
+    /* 選択時刻＋スライダーを1行に */
+    .timeRow{display:flex;align-items:center;gap:8px}
+    .timeRow .timeLead{font-size:11.5px;color:var(--muted);white-space:nowrap}
+    .timeRow .timeLabel{font-size:14px;white-space:nowrap;min-width:96px}
+    .timeRow #timeSlider{flex:1;min-width:120px;margin:0}
+    /* 凡例は1行にまとめる */
+    .legendRow{display:flex;align-items:center;flex-wrap:wrap;gap:3px 10px;margin-top:5px;font-size:11px;color:var(--muted)}
+    .legendRow .sep{width:1px;height:13px;background:var(--line)}
+    .legendRow .wbgtLead{font-weight:700;color:#334155}
+    .chip{display:inline-flex;align-items:center;gap:5px}.sw{width:16px;height:3px;border-radius:999px;background:#999}.sw.temp{background:#ef4444}.sw.hum{background:#2563eb}.sw.rain{background:#0ea5e9}
     .leaflet-control-attribution{font-size:10px}.error{color:#b91c1c;font-size:13px;white-space:pre-wrap}
     .leaflet-pane.rain-pane-strong img{filter:saturate(2.8) contrast(2.2) brightness(1.08)}
     .leaflet-pane.rain-nd-pane img{filter:contrast(1.15) brightness(1.05)}
@@ -40,7 +58,8 @@
     .leaflet-pane.himawari-vis-pane img{filter:grayscale(0.10) contrast(1.25) brightness(1.08)}
     .leaflet-pane.himawari-cloud-pane img{filter:saturate(1.25) contrast(1.18) brightness(1.02)}
     .value{display:inline-block;min-width:3.2em;text-align:right;color:#2563eb;font-weight:700}
-    .wideLabel{min-width:240px}
+    .wideLabel{min-width:0}
+    .threeControls input[type="range"]{width:104px;vertical-align:middle}
     .obs-dot{background:#ef4444;border:3px solid #fff;border-radius:999px;box-shadow:0 0 0 2px #11182755}
     .obs-label{background:#ffffffee;border:1px solid #94a3b8;border-radius:6px;padding:2px 6px;font-size:12px;font-weight:700;color:#1f2937;box-shadow:0 2px 8px #00000022;white-space:nowrap}
     /* 地図に載せる暑さ指数(WBGT)の数値ラベル */
@@ -54,29 +73,26 @@
     /* 全国用の小さめ文字（数値が重なりにくいように） */
     .wbgt-mini .wbgt-dot.tiny{font-size:9px;padding:0 2px;border-radius:4px;border-color:#b8c2d0;box-shadow:0 1px 2px #00000022}
     .wbgt-mini .wbgt-dot-special{background:#000;border-color:#000;color:#fff !important;box-shadow:0 0 0 1px #fff,0 1px 5px #0000005c}
-    /* 凡例（添付の色区分表を再現） */
-    .wbgtLegend{margin-top:10px}
-    .wbgtLegend .wbgtNote{font-size:12px;color:#334155;line-height:1.6;margin-bottom:6px}
-    .wbgtScale{display:grid;grid-template-columns:repeat(6,1fr);gap:0;border:1px solid #94a3b8;border-radius:8px;overflow:hidden;max-width:760px}
-    .wbgtScale .cellHd{padding:5px 4px;font-size:12px;font-weight:800;text-align:center;border-right:1px solid #ffffff88}
-    .wbgtScale .cellBd{padding:5px 4px;font-size:11px;text-align:center;color:#1f2937;background:#fff;border-right:1px solid #e2e8f0;border-top:1px solid #e2e8f0}
-    .wbgtScale .col:last-child .cellHd,.wbgtScale .col:last-child .cellBd{border-right:none}
-    .wbgtScale .col{display:flex;flex-direction:column}
-    @media(max-width:640px){.wbgtScale{grid-template-columns:repeat(3,1fr)}}
+    /* 暑さ指数の色区分凡例：1行のチップ表示でコンパクトに */
+    .wbgtScale{display:flex;flex-wrap:wrap;gap:3px}
+    .wbgtScale .wchip{font-size:10px;line-height:1.6;padding:0 7px;border-radius:999px;white-space:nowrap;font-weight:700}
+    .wbgtNote{font-size:11.5px;color:#334155;line-height:1.55}
+    .sliderBox details.adv .advBody{display:block}
+    .sliderBox details.adv #debugBox{margin-top:5px}
 
-    .threeWrap{height:520px;min-height:420px;background:linear-gradient(180deg,#e0f2fe,#f8fafc);position:relative}
+    .threeWrap{height:460px;min-height:360px;background:linear-gradient(180deg,#e0f2fe,#f8fafc);position:relative}
     #cloud3dCanvas{width:100%;height:100%;display:block}
-    .threeControls{display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:10px 12px;border-bottom:1px solid var(--line);background:#ffffffdd}
-    .threeStatus{font-size:12px;color:var(--muted);padding:8px 12px;border-top:1px solid var(--line);background:#fff;white-space:pre-wrap}
-    .smallBtn{padding:6px 10px;border:1px solid #94a3b8;border-radius:8px;background:#fff;cursor:pointer}
+    .threeControls{display:flex;gap:5px 12px;align-items:center;flex-wrap:wrap;padding:7px 10px;border-bottom:1px solid var(--line);background:#ffffffdd}
+    .threeStatus{font-size:11px;color:var(--muted);padding:6px 10px;border-top:1px solid var(--line);background:#fff;white-space:pre-wrap;max-height:76px;overflow:auto}
+    .smallBtn{padding:3px 9px;border:1px solid #94a3b8;border-radius:6px;background:#fff;cursor:pointer;font-size:12px}
     .smallBtn:hover{background:#eff6ff}
-    @media(max-width:900px){.grid{grid-template-columns:1fr}.map{height:45vh}.threeWrap{height:420px}}
+    @media(max-width:900px){.grid{grid-template-columns:1fr}.map{height:40vh;min-height:260px}.threeWrap{height:380px}.chartWrap{height:220px}}
   </style>
 </head>
 <body>
 <header>
   <h1>雨雲レーダー・気象庁天気図・温度湿度降雨量グラフ</h1>
-  <div class="note">左は日本全体、右は選択地域を表示します。トラックバーを動かすか、<b>下のグラフ上をクリック（スマホはタッチ）して左右にドラッグ</b>すると、グラフの縦線・雨雲レーダー・天気図・衛星画像・暑さ指数をその時刻に近いデータへ切り替えます。</div>
+  <div class="note">左＝日本全体／右＝選択地域。<b>グラフ上をクリック（スマホはタッチ）して左右にドラッグ</b>、またはスライダーで時刻を変えると、雨雲・天気図・衛星・暑さ指数が連動します。</div>
 </header>
 <main>
   <section class="toolbar">
@@ -91,20 +107,11 @@
         <option value="okinawa">那覇</option>
       </select>
     </label>
-    <label><input id="rainToggle" type="checkbox" checked> 雨雲レーダー</label>
-    <label><input id="chartToggle" type="checkbox" checked> 気象庁天気図</label>
-    <label><input id="wbgtToggle" type="checkbox" checked> 暑さ指数(WBGT)</label>
+    <label><input id="rainToggle" type="checkbox" checked> 雨雲</label>
+    <label><input id="chartToggle" type="checkbox" checked> 天気図</label>
+    <label><input id="wbgtToggle" type="checkbox" checked> 暑さ指数</label>
     <label><input id="himawariVisibleToggle" type="checkbox"> ひまわり可視</label>
-    <label><input id="himawariCloudTopToggle" type="checkbox"> ひまわり雲頂強調</label>
-    <label>衛星透明度 <input id="himawariOpacity" type="range" min="0" max="1" step="0.05" value="0.55"></label>
-    <label>雨雲透明度 <input id="rainOpacity" type="range" min="0" max="1" step="0.05" value="1"></label>
-    <label>天気図透明度 <input id="wxOpacity" type="range" min="0" max="1" step="0.05" value="0.34"></label>
-    <label class="wideLabel">天気図 横倍率 <span id="wxScaleXVal" class="value">0.70</span><input id="wxScaleX" type="range" min="0.40" max="3.50" step="0.01" value="0.70"></label>
-    <label class="wideLabel">天気図 縦倍率 <span id="wxScaleYVal" class="value">0.70</span><input id="wxScaleY" type="range" min="0.40" max="3.50" step="0.01" value="0.70"></label>
-    <label class="wideLabel">天気図 東西位置 <span id="wxLonOffsetVal" class="value">-1.4</span><input id="wxLonOffset" type="range" min="-12" max="12" step="0.1" value="-1.4"></label>
-    <label class="wideLabel">天気図 南北位置 <span id="wxLatOffsetVal" class="value">-2.0</span><input id="wxLatOffset" type="range" min="-12" max="12" step="0.1" value="-2.0"></label>
-    <label class="wideLabel">天気図 回転角 <span id="wxRotateVal" class="value">0.0</span><input id="wxRotate" type="range" min="-15" max="15" step="0.1" value="0"></label>
-    <button id="wxResetBtn" type="button">天気図位置リセット</button>
+    <label><input id="himawariCloudTopToggle" type="checkbox"> 雲頂強調</label>
     <label><input id="rainEnhance" type="checkbox" checked> 雨雲を強調</label>
     <label>雨雲表示：
       <select id="radarMode">
@@ -113,23 +120,44 @@
         <option value="hrpns_nd">欠測域のみ</option>
       </select>
     </label>
-    <button id="reloadBtn">再読み込み</button>
+    <button id="reloadBtn" class="smallBtn">再読み込み</button>
+    <details class="adv">
+      <summary>詳細設定（透明度・天気図の位置合わせ）</summary>
+      <div class="advBody">
+        <label>衛星透明度 <input id="himawariOpacity" type="range" min="0" max="1" step="0.05" value="0.55"></label>
+        <label>雨雲透明度 <input id="rainOpacity" type="range" min="0" max="1" step="0.05" value="1"></label>
+        <label>天気図透明度 <input id="wxOpacity" type="range" min="0" max="1" step="0.05" value="0.34"></label>
+        <span class="advNote">天気図は加工せず基準にし、地図・雨雲・衛星・暑さ指数を天気図の図法へ再投影して重ねています。輪郭がずれる場合はここで合わせてください：</span>
+        <label>地図の合わせ 倍率 <span id="wxScaleVal" class="value">1.000</span><input id="wxScale" type="range" min="0.85" max="1.20" step="0.002" value="1.0"></label>
+        <label>東西 <span id="wxShiftXVal" class="value">0.000</span><input id="wxShiftX" type="range" min="-0.12" max="0.12" step="0.002" value="0"></label>
+        <label>南北 <span id="wxShiftYVal" class="value">0.000</span><input id="wxShiftY" type="range" min="-0.12" max="0.12" step="0.002" value="0"></label>
+        <button id="wxResetBtn" type="button" class="smallBtn">天気図位置リセット</button>
+      </div>
+    </details>
   </section>
 
   <section class="sliderBox">
-    <div>選択時刻：<span class="timeLabel" id="selectedTime">読み込み中...</span></div>
-    <input id="timeSlider" type="range" min="0" max="0" value="0" step="1" disabled>
-    <div class="legend">
-      <span class="chip"><span class="sw temp"></span>気温 ℃</span>
-      <span class="chip"><span class="sw hum"></span>湿度 %</span>
-      <span class="chip"><span class="sw rain"></span>降水量 mm/h</span>
+    <div class="timeRow">
+      <span class="timeLead">選択時刻</span>
+      <span class="timeLabel" id="selectedTime">読み込み中...</span>
+      <input id="timeSlider" type="range" min="0" max="0" value="0" step="1" disabled>
     </div>
-    <div class="wbgtLegend">
-      <div class="wbgtNote">地図上の数値は各地点の暑さ指数WBGT（環境省・実況推定値／予測値）で、トラックバーの選択時刻に最も近い値を表示します。<b>左（全国）＝各県庁所在地、右（地域）＝選択した県内の全公表地点</b>を、色と数値のみでオーバーレイします。数値の色は下表の区分に対応し、<b>35 を超える場合は黒地に白の太字（熱中症特別警戒）</b>で表示します。ツールバーの「暑さ指数」チェックで表示ON/OFFできます。</div>
-      <div id="wbgtScale" class="wbgtScale"></div>
+    <div class="legendRow">
+      <span class="chip"><span class="sw temp"></span>気温℃</span>
+      <span class="chip"><span class="sw hum"></span>湿度%</span>
+      <span class="chip"><span class="sw rain"></span>降水mm/h</span>
+      <span class="sep"></span>
+      <span class="wbgtLead">暑さ指数</span>
+      <span id="wbgtScale" class="wbgtScale"></span>
     </div>
     <div id="errorBox" class="error"></div>
-    <div id="debugBox" class="note"></div>
+    <details class="adv">
+      <summary>暑さ指数の見方・取得状況</summary>
+      <div class="advBody">
+        <div class="wbgtNote">地図上の数値は各地点の暑さ指数WBGT（環境省・実況推定値／予測値）で、選択時刻に最も近い値を整数で表示します。<b>左（全国）＝各県庁所在地、右（地域）＝選択した県内の全公表地点</b>を、色と数値のみでオーバーレイします。数値の色は上のチップの区分に対応し、<b>35 を超える場合は黒地に白の太字（熱中症特別警戒）</b>で表示します。表示ON/OFFはツールバーの「暑さ指数」チェックです。</div>
+        <div id="debugBox" class="note"></div>
+      </div>
+    </details>
   </section>
 
   <section class="grid">
@@ -156,6 +184,7 @@
       </label>
       <label class="wideLabel">高さ倍率 <span id="cloud3dHeightScaleVal" class="value">55</span><input id="cloud3dHeightScale" type="range" min="5" max="160" step="1" value="55"></label>
       <label class="wideLabel">解像度 <span id="cloud3dResolutionVal" class="value">96</span><input id="cloud3dResolution" type="range" min="48" max="180" step="4" value="96"></label>
+      <label><input id="cloud3dAutoToggle" type="checkbox" checked> 時刻に連動して自動作成</label>
       <label><input id="cloud3dWireToggle" type="checkbox"> ワイヤー表示</label>
       <label class="wideLabel">雲画像透明度 <span id="cloud3dOpacityVal" class="value">0.68</span><input id="cloud3dOpacity" type="range" min="0.15" max="1" step="0.01" value="0.68"></label>
       <label class="wideLabel">地図透明度 <span id="cloud3dBaseOpacityVal" class="value">1.00</span><input id="cloud3dBaseOpacity" type="range" min="0" max="1" step="0.01" value="1.00"></label>
@@ -250,7 +279,8 @@ function closestByTime(list, t){ if(!list.length) return null; return list.reduc
 
 function initMaps(){
   const base = 'https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png';
-  mapJapan = L.map('mapJapan', {zoomControl:true}).setView([37.5, 137.5], 4); // 初期状態で雨雲レーダーが見えるよう、マイナスを1回押した相当のズーム
+  // zoomSnap:0 で小数ズームを許可し、天気図の横幅をウインドウ幅にぴったり合わせられるようにします。
+  mapJapan = L.map('mapJapan', {zoomControl:true, zoomSnap:0, zoomDelta:0.5}).setView([37.5, 137.5], 4);
   mapRegion = L.map('mapRegion', {zoomControl:true}).setView([REGIONS.kagawa.lat, REGIONS.kagawa.lon], REGIONS.kagawa.zoom);
   [mapJapan, mapRegion].forEach(m => {
     m.createPane('himawariVisPane'); m.getPane('himawariVisPane').style.zIndex = 420; m.getPane('himawariVisPane').classList.add('himawari-vis-pane');
@@ -258,9 +288,13 @@ function initMaps(){
     m.createPane('wxPane'); m.getPane('wxPane').style.zIndex = 450; m.getPane('wxPane').classList.add('wx-pane');
     m.createPane('rainNDPane'); m.getPane('rainNDPane').style.zIndex = 740; m.getPane('rainNDPane').classList.add('rain-nd-pane');
     m.createPane('rainPane'); m.getPane('rainPane').style.zIndex = 780; m.getPane('rainPane').classList.add('rain-pane-strong');
+    m.createPane('japanBasePane'); m.getPane('japanBasePane').style.zIndex = 350;
     m.createPane('obsPane'); m.getPane('obsPane').style.zIndex = 900;
-    L.tileLayer(base, {maxZoom:18, attribution:'地理院タイル'}).addTo(m);
   });
+  // 右側（地域）は通常の地理院タイル。左側（日本全土）は天気図の図法に再投影した背景を使います。
+  L.tileLayer(base, {maxZoom:18, attribution:'地理院タイル'}).addTo(mapRegion);
+  mapJapan.attributionControl.addAttribution('地理院タイル, 気象庁');
+  rebuildJapanBase();
 }
 
 async function fetchJson(url){
@@ -465,7 +499,7 @@ function renderWbgtGroup(map, groupMap, tiny){
     if(!nearest) return;
     const icon = makeWbgtNumIcon(nearest.wbgt, tiny);
     if(!icon) return;
-    const marker = L.marker([c.lat, c.lon], {icon, pane:'obsPane', interactive:false}).addTo(map);
+    const marker = L.marker(placeOnMap(map, c.lat, c.lon), {icon, pane:'obsPane', interactive:false}).addTo(map);
     wbgtLayers.push(marker);
     n++;
   });
@@ -483,15 +517,14 @@ function updateWbgtOverlay(){
 function renderWbgtLegend(){
   const box = document.getElementById('wbgtScale');
   if(!box) return;
-  const ranges = ['21未満','21以上25未満','25以上28未満','28以上31未満','31以上35以下','35を超える'];
+  // 1行に収まるチップ表示。詳しい対処法（適時水分補給など）はマウスオーバーで表示します。
+  const ranges = ['21未満','21〜25','25〜28','28〜31','31〜35','35超'];
+  const full = ['21未満','21以上25未満','25以上28未満','28以上31未満','31以上35以下','35を超える'];
   // 明るい背景色（水色・黄）は文字を黒、それ以外は白にして視認性を確保します。
   const darkText = new Set(['#9fd3f7','#fff200']);
   box.innerHTML = WBGT_LEVELS.map((L,i) => {
-    const hdColor = darkText.has(L.cell.toLowerCase()) ? '#1f2937' : '#ffffff';
-    return `<div class="col">`
-      + `<div class="cellHd" style="background:${L.cell};color:${hdColor}">${L.label}</div>`
-      + `<div class="cellBd">${ranges[i]}<br>${L.action}</div>`
-      + `</div>`;
+    const c = darkText.has(L.cell.toLowerCase()) ? '#1f2937' : '#ffffff';
+    return `<span class="wchip" style="background:${L.cell};color:${c}" title="${full[i]}：${L.action}">${L.label} ${ranges[i]}</span>`;
   }).join('');
 }
 
@@ -531,37 +564,292 @@ function updateRainPaneStyle(){
   });
 }
 
+// ===== 気象庁天気図の配置（画像は一切加工せず、本来の縦横比のまま貼る） =====
+// 天気図を「基準」とし、画像をリサンプルしたり縦横を別倍率で伸ばしたりはしません。
+// 画像本来のアスペクト比を保ったまま地図上に置き、位置と大きさだけを調整して
+// 日本の形が地図タイル側と重なるように合わせます。
+const WX_PLACE = {
+  centerLat: 31.5,   // 倍率1.0のときの中心
+  centerLon: 136.1,
+  halfLon: 32.14     // 倍率1.0のときの東西の半幅（度）
+};
+let wxImageAspect = 0.84;      // 画像の 高さ/幅（実画像から判明したら更新）
+let wxAspectKnown = false;
+const wxAspectCache = new Map();
+
+function mercY(latDeg){ return Math.log(Math.tan(Math.PI/4 + latDeg*Math.PI/360)); }
+function invMercY(y){ return (2*Math.atan(Math.exp(y)) - Math.PI/2) * 180/Math.PI; }
+
+function getWxTuning(){
+  const g = (id, def) => { const el = document.getElementById(id); const v = el ? +el.value : NaN; return isNaN(v) ? def : v; };
+  return {scale: g('wxScale', 1.0), shiftX: g('wxShiftX', 0), shiftY: g('wxShiftY', 0)};
+}
+
+// 画像を歪めないための肝：東西の幅を決めたら、南北の幅は
+// 「メルカトル平面上で画像のアスペクト比と同じになる」ように計算します。
 function getWeatherMapBounds(){
-  // 気象庁の近域天気図は通常のWeb地図タイルと投影が一致しないため、
-  // 横倍率・縦倍率・東西/南北位置を独立して微調整できるようにします。
-  const scaleX = +document.getElementById('wxScaleX').value || 0.70;
-  const scaleY = +document.getElementById('wxScaleY').value || 0.70;
-  const lonOffset = +document.getElementById('wxLonOffset').value || 0;
-  const latOffset = +document.getElementById('wxLatOffset').value || 0;
-  const centerLat = 33.5 + latOffset;
-  const centerLon = 137.5 + lonOffset;
-  const halfLat = (50 - 17) / 2 / scaleY;
-  const halfLon = (160 - 115) / 2 / scaleX;
-  return [[centerLat - halfLat, centerLon - halfLon], [centerLat + halfLat, centerLon + halfLon]];
+  const t = getWxTuning();
+  const halfLon = WX_PLACE.halfLon / t.scale;
+  const cLon = WX_PLACE.centerLon + t.shiftX;
+  const cLat = WX_PLACE.centerLat + t.shiftY;
+  const lonW = cLon - halfLon, lonE = cLon + halfLon;
+  // メルカトルではx∝経度なので、x方向の広がり（ラジアン）から必要なy方向の広がりを出します。
+  const xSpan = (lonE - lonW) * Math.PI/180;
+  const ySpan = xSpan * wxImageAspect;          // ← これで画像は無歪み
+  const yC = mercY(cLat);
+  const latN = invMercY(yC + ySpan/2);
+  const latS = invMercY(yC - ySpan/2);
+  return [[latS, lonW], [latN, lonE]];
+}
+
+// 画像の縦横比を調べます（寸法を読むだけなのでCORSの制約を受けません）。
+function ensureWxAspect(url){
+  if(wxAspectCache.has(url)) return wxAspectCache.get(url);
+  const p = new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => {
+      const w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
+      if(w && h){
+        const a = h / w;
+        const changed = !wxAspectKnown || Math.abs(a - wxImageAspect) > 1e-6;
+        wxImageAspect = a; wxAspectKnown = true;
+        resolve(changed);
+      }else resolve(false);
+    };
+    img.onerror = () => resolve(false);
+    img.src = url;
+  });
+  wxAspectCache.set(url, p);
+  return p;
+}
+
+// ===== 地図側データを天気図の図法（極心平射）へ再投影する =====
+// 天気図の画像内での「北極の位置(cu,cv)」と「倍率(scale)」。画像の幅=1 の等方単位。
+const WX_GEO = {lon0:140, latTs:60, cu:0.556682, cv:-0.413567, scale:0.854609};
+// 再投影に使う元データの地理範囲（この範囲のタイルを集めて変換します）
+const CHART_GEO_BBOX = {latS:0, latN:70, lonW:95, lonE:180};
+const WARP_OUT_W = 1100;
+
+function wxGeoTuned(){
+  const t = getWxTuning();
+  return {lon0:WX_GEO.lon0, latTs:WX_GEO.latTs,
+          cu:WX_GEO.cu + t.shiftX, cv:WX_GEO.cv + t.shiftY, scale:WX_GEO.scale * t.scale};
+}
+// 緯度経度 → 天気図画像内の位置（u:幅の比, v:高さの比）
+function wxProjectToImage(lat, lon, g, aspect){
+  const k = 1 + Math.sin(g.latTs*Math.PI/180);
+  const rho = k * Math.tan(Math.PI/4 - lat*Math.PI/360);
+  const d = (lon - g.lon0) * Math.PI/180;
+  return {u: g.cu + g.scale*rho*Math.sin(d), v: (g.cv + g.scale*rho*Math.cos(d))/aspect};
+}
+// 天気図画像内の位置 → 緯度経度（上の逆変換）
+function wxUnprojectFromImage(u, v, g, aspect){
+  const k = 1 + Math.sin(g.latTs*Math.PI/180);
+  const X = (u - g.cu)/g.scale, Y = (v*aspect - g.cv)/g.scale;
+  const rho = Math.sqrt(X*X + Y*Y);
+  let lon = g.lon0 + Math.atan2(X, Y)*180/Math.PI;
+  if(lon > 180) lon -= 360; else if(lon < -180) lon += 360;
+  return {lat: 90 - 2*Math.atan(rho/k)*180/Math.PI, lon};
+}
+// 画像内の位置 → 画面上の緯度経度（天気図を貼っている矩形に線形対応）
+function wxImageFracToLatLng(u, v){
+  const bb = getWeatherMapBounds();
+  const latS = bb[0][0], lonW = bb[0][1], latN = bb[1][0], lonE = bb[1][1];
+  const yN = mercY(latN), yS = mercY(latS);
+  return [invMercY(yN - v*(yN - yS)), lonW + u*(lonE - lonW)];
+}
+// 実際の緯度経度 → 日本全土地図（天気図座標系）での表示位置
+function wxGeoToDisplay(lat, lon){
+  const p = wxProjectToImage(lat, lon, wxGeoTuned(), wxImageAspect);
+  return wxImageFracToLatLng(p.u, p.v);
+}
+// 日本全土地図はマーカーも天気図座標へ寄せます（右側の地域地図は通常座標のまま）
+function placeOnMap(map, lat, lon){
+  return (map === mapJapan) ? wxGeoToDisplay(lat, lon) : [lat, lon];
+}
+// 日本全土地図は天気図座標系なので、表示範囲を「実際の緯度経度」に戻して返します。
+function mapGeoBounds(map){
+  const b = map.getBounds();
+  if(map !== mapJapan) return b;
+  const bb = getWeatherMapBounds();
+  const latS = bb[0][0], lonW = bb[0][1], latN = bb[1][0], lonE = bb[1][1];
+  const yN = mercY(latN), yS = mercY(latS), g = wxGeoTuned();
+  let sLat = 90, nLat = -90, wLon = 180, eLon = -180, n = 0;
+  const N = 10;
+  for(let i=0; i<=N; i++) for(let j=0; j<=N; j++){
+    const lat = b.getSouth() + (b.getNorth()-b.getSouth())*j/N;
+    const lon = b.getWest() + (b.getEast()-b.getWest())*i/N;
+    const p = wxUnprojectFromImage((lon-lonW)/(lonE-lonW), (yN-mercY(lat))/(yN-yS), g, wxImageAspect);
+    if(!isFinite(p.lat) || !isFinite(p.lon) || p.lat < -85 || p.lat > 85) continue;
+    sLat = Math.min(sLat, p.lat); nLat = Math.max(nLat, p.lat);
+    wLon = Math.min(wLon, p.lon); eLon = Math.max(eLon, p.lon); n++;
+  }
+  return n ? L.latLngBounds([sLat, wLon], [nLat, eLon]) : b;
+}
+
+// メルカトルのXYZタイルを集めて1枚のキャンバスにします（並列取得）。
+async function buildMercatorMosaic(tileUrl, z, bbox, maxTiles){
+  const nw = lonLatToTileXY(bbox.lonW, bbox.latN, z);
+  const se = lonLatToTileXY(bbox.lonE, bbox.latS, z);
+  let minX = Math.min(nw.x, se.x), maxX = Math.max(nw.x, se.x);
+  let minY = Math.min(nw.y, se.y), maxY = Math.max(nw.y, se.y);
+  ({minX, maxX, minY, maxY} = limitTileRange(minX, maxX, minY, maxY, maxTiles || 64));
+  const T = 256, W = (maxX-minX+1)*T, H = (maxY-minY+1)*T;
+  const c = document.createElement('canvas'); c.width = W; c.height = H;
+  const ctx = c.getContext('2d', {willReadFrequently:true});
+  const jobs = [];
+  for(let y=minY; y<=maxY; y++) for(let x=minX; x<=maxX; x++){
+    jobs.push(loadImageForCanvas(tileUrl(z, x, y))
+      .then(img => { ctx.drawImage(img, (x-minX)*T, (y-minY)*T, T, T); return 1; })
+      .catch(() => 0));
+  }
+  const res = await Promise.all(jobs);
+  const ok = res.reduce((a,b)=>a+b, 0);
+  return {ctx, minX, minY, W, H, z, ok, fail: res.length - ok};
+}
+
+// 集めたメルカトル画像を、天気図の図法に合わせて描き直します。
+function warpMosaicToChart(mos, outW){
+  const aspect = wxImageAspect;
+  const outH = Math.max(1, Math.round(outW * aspect));
+  const g = wxGeoTuned();
+  const k = 1 + Math.sin(g.latTs*Math.PI/180);
+  const src = mos.ctx.getImageData(0, 0, mos.W, mos.H).data;
+  const out = document.createElement('canvas'); out.width = outW; out.height = outH;
+  const octx = out.getContext('2d');
+  const od = octx.createImageData(outW, outH), o = od.data;
+  const scaleG = Math.pow(2, mos.z) * 256;
+  const left = mos.minX*256, top = mos.minY*256;
+  for(let py=0; py<outH; py++){
+    const Y = (((py+0.5)/outH)*aspect - g.cv)/g.scale;
+    const rowOff = py*outW*4;
+    for(let px=0; px<outW; px++){
+      const X = ((px+0.5)/outW - g.cu)/g.scale;
+      const rho = Math.sqrt(X*X + Y*Y);
+      const lat = 90 - 2*Math.atan(rho/k)*180/Math.PI;
+      if(lat < -84 || lat > 84) continue;
+      let lon = g.lon0 + Math.atan2(X, Y)*180/Math.PI;
+      if(lon > 180) lon -= 360; else if(lon < -180) lon += 360;
+      const gx = (lon+180)/360*scaleG - left;
+      if(gx < 0 || gx >= mos.W) continue;
+      const lr = lat*Math.PI/180;
+      const gy = (1 - Math.log(Math.tan(lr) + 1/Math.cos(lr))/Math.PI)/2*scaleG - top;
+      if(gy < 0 || gy >= mos.H) continue;
+      const si = (((gy|0)*mos.W) + (gx|0))*4, oi = rowOff + px*4;
+      o[oi]=src[si]; o[oi+1]=src[si+1]; o[oi+2]=src[si+2]; o[oi+3]=src[si+3];
+    }
+  }
+  octx.putImageData(od, 0, 0);
+  return out;
+}
+
+const warpCache = new Map();
+const warpInflight = new Map();
+function warpKey(name, extra){
+  const t = getWxTuning();
+  return `${name}|${extra}|${t.scale}|${t.shiftX}|${t.shiftY}|${wxImageAspect.toFixed(4)}`;
+}
+// 再投影した画像を天気図と同じ矩形に重ねます。
+async function addWarpedOverlay(map, opt){
+  const layer = L.imageOverlay('', getWeatherMapBounds(), {
+    opacity:opt.opacity, interactive:false, zIndex:opt.zIndex, pane:opt.pane
+  }).addTo(map);
+  opt.store.push(layer);
+  try{
+    const key = warpKey(opt.name, opt.extra);
+    let url = warpCache.get(key);
+    if(!url){
+      // 同じ内容の変換が同時に走らないようにまとめます
+      let job = warpInflight.get(key);
+      if(!job){
+        job = (async () => {
+          const mos = await buildMercatorMosaic(opt.tileUrl, opt.z, CHART_GEO_BBOX, 64);
+          if(!mos.ok) throw new Error('タイルを取得できませんでした');
+          const u = warpMosaicToChart(mos, WARP_OUT_W).toDataURL('image/png');
+          if(warpCache.size > 10) warpCache.clear();
+          warpCache.set(key, u);
+          return u;
+        })();
+        warpInflight.set(key, job);
+        job.catch(()=>{}).then(() => warpInflight.delete(key));
+      }
+      url = await job;
+    }
+    if(opt.store.includes(layer)) layer.setUrl(url);
+  }catch(e){
+    console.warn('再投影に失敗:', opt.name, e);
+  }
+  return layer;
+}
+
+// 日本全土の背景地図（地理院タイルを再投影したもの）
+let japanBaseLayers = [];
+function rebuildJapanBase(){
+  clearLayerArray(japanBaseLayers);
+  if(!mapJapan) return;
+  addWarpedOverlay(mapJapan, {
+    name:'gsi', extra:'pale', z:5, pane:'japanBasePane', zIndex:350, opacity:1,
+    store:japanBaseLayers,
+    tileUrl:(z,x,y) => `https://cyberjapandata.gsi.go.jp/xyz/pale/${z}/${x}/${y}.png`
+  });
 }
 
 function updateTuneValueLabels(){
-  const ids = ['wxScaleX','wxScaleY','wxLonOffset','wxLatOffset','wxRotate'];
-  ids.forEach(id => {
+  const fmt = {wxScale:3, wxShiftX:3, wxShiftY:3};
+  Object.keys(fmt).forEach(id => {
     const el = document.getElementById(id);
     const val = document.getElementById(id + 'Val');
-    if(el && val) val.textContent = (+el.value).toFixed(id.includes('Scale') ? 2 : 1);
+    if(el && val) val.textContent = (+el.value).toFixed(fmt[id]);
   });
 }
 
 function resetWeatherMapTuning(){
-  document.getElementById('wxScaleX').value = 0.70;
-  document.getElementById('wxScaleY').value = 0.70;
-  document.getElementById('wxLonOffset').value = -1.4;
-  document.getElementById('wxLatOffset').value = -2.0;
-  document.getElementById('wxRotate').value = 0;
+  document.getElementById('wxScale').value = 1.0;
+  document.getElementById('wxShiftX').value = 0;
+  document.getElementById('wxShiftY').value = 0;
   updateTuneValueLabels();
+  rebuildJapanBase();
   updateOverlays();
+  fitJapanToWeatherMap({force:true});
+}
+
+// 地図ボックスの縦横比を天気図画像の縦横比に合わせます。
+// これで「横幅＝天気図の幅」にしたとき、縦も天気図がちょうど収まります。
+// 右側（高松）の地図にも同じ比率を適用します。
+function applyMapAspect(){
+  const els = [document.getElementById('mapJapan'), document.getElementById('mapRegion')].filter(Boolean);
+  els.forEach(el => {
+    const w = el.clientWidth;
+    if(!w) return;
+    // 極端に縦長・縦短にならないよう安全域でクランプします。
+    const h = Math.max(240, Math.min(Math.round(w * wxImageAspect), Math.round(window.innerHeight * 0.92)));
+    el.style.height = h + 'px';
+  });
+  [mapJapan, mapRegion].forEach(m => { if(m) m.invalidateSize(false); });
+}
+
+// 日本全土の地図を天気図に合わせます。初期表示は「天気図の横幅＝ウインドウ幅」、
+// 縮小は「天気図全体が見える縮尺」までで止めます（それ以上は縮小不可）。
+let japanFitted = false;
+function fitJapanToWeatherMap(opts){
+  if(!mapJapan) return;
+  const bb = getWeatherMapBounds();
+  const b = L.latLngBounds(bb);
+  const lonSpan = bb[1][1] - bb[0][1];
+  const size = mapJapan.getSize();
+  if(!size.x || !size.y || !(lonSpan > 0)) return;
+  mapJapan.setMinZoom(-5); // 一旦解除してから必要なズームを求めます
+  // 天気図の横幅がちょうどウインドウ幅になるズーム（メルカトルではx∝経度）
+  const zWidth = Math.log2(size.x * 360 / (256 * lonSpan));
+  const zAll = mapJapan.getBoundsZoom(b, false); // 天気図全体が収まるズーム
+  const zMin = Math.min(zWidth, zAll);
+  if(!japanFitted || (opts && opts.force)){
+    mapJapan.setView(b.getCenter(), zWidth, {animate:false});
+    japanFitted = true;
+  }else if(mapJapan.getZoom() < zMin){
+    mapJapan.setZoom(zMin, {animate:false});
+  }
+  mapJapan.setMinZoom(zMin); // これ以上は縮小不可（拡大のみ）
 }
 
 function forceMapAndOverlayRefresh(){
@@ -586,6 +874,15 @@ function makeNowcTileUrl(time, element){
 
 function addOneRadarLayer(map, time, element, paneName, opacity, zIndex){
   const url = makeNowcTileUrl(time, element);
+  if(map === mapJapan){
+    // 日本全土は天気図の図法に再投影して重ねます
+    addWarpedOverlay(map, {
+      name:'radar', extra:`${element}|${time.base}|${time.valid}`, z:5,
+      pane:paneName, zIndex, opacity, store:rainLayers,
+      tileUrl:(z,x,y) => url.replace('{z}', z).replace('{x}', x).replace('{y}', y)
+    }).then(() => { radarTileStats.loaded++; updateDebugLine(); });
+    return;
+  }
   const layer = L.tileLayer(url, {
     minZoom:4,
     maxZoom:18,
@@ -618,47 +915,29 @@ function addRadar(map, time){
   }
 }
 
-const RotatableImageOverlay = L.ImageOverlay.extend({
-  options:{rotationDeg:0},
-  _reset:function(){
-    L.ImageOverlay.prototype._reset.call(this);
-    this._applyRotation();
-  },
-  _animateZoom:function(e){
-    L.ImageOverlay.prototype._animateZoom.call(this, e);
-    this._applyRotation();
-  },
-  _applyRotation:function(){
-    if(!this._image) return;
-    const deg = this.options.rotationDeg || 0;
-    this._image.style.transformOrigin = '50% 50%';
-    this._image.style.webkitTransformOrigin = '50% 50%';
-    const base = this._image.style.transform || this._image.style.webkitTransform || '';
-    const clean = base.replace(/\s*rotate\([^)]*\)/g, '');
-    this._image.style.transform = `${clean} rotate(${deg}deg)`;
-    this._image.style.webkitTransform = `${clean} rotate(${deg}deg)`;
-  }
-});
-
-function getWeatherMapRotation(){
-  return +document.getElementById('wxRotate').value || 0;
-}
-
+// 天気図は加工せずそのまま貼ります。画像の縦横比が分かった時点で、
+// 無歪みになるよう配置範囲を計算し直します。
 function addWxMap(map, item){
-  const bounds = getWeatherMapBounds();
-  const layer = new RotatableImageOverlay(item.url, bounds, {
+  const layer = L.imageOverlay(item.url, getWeatherMapBounds(), {
     opacity:+document.getElementById('wxOpacity').value,
     interactive:false,
     zIndex:450,
-    pane:'wxPane',
-    rotationDeg:getWeatherMapRotation()
+    pane:'wxPane'
   }).addTo(map);
-  setTimeout(() => { try{ layer._applyRotation(); }catch(e){} }, 60);
   wxLayers.push(layer);
+  ensureWxAspect(item.url).then(changed => {
+    if(!wxLayers.includes(layer)) return; // 既に時刻が変わって破棄済み
+    if(changed){
+      applyMapAspect(); // 地図ボックスの縦横比を天気図に合わせる
+      wxLayers.forEach(l => { try{ l.setBounds(L.latLngBounds(getWeatherMapBounds())); }catch(e){} });
+      fitJapanToWeatherMap({force:true}); // 天気図の実寸に合わせて表示範囲を取り直す
+    }
+  });
 }
 
 function addObservationPoint(map, place, label){
-  const marker = L.circleMarker([place.lat, place.lon], {
+  const pos = placeOnMap(map, place.lat, place.lon);
+  const marker = L.circleMarker(pos, {
     radius:8,
     color:'#ffffff',
     weight:3,
@@ -674,7 +953,7 @@ function addObservationPoint(map, place, label){
     iconSize:null,
     iconAnchor:[-12, 20]
   });
-  const lab = L.marker([place.lat, place.lon], {icon:labelIcon, pane:'obsPane', interactive:false}).addTo(map);
+  const lab = L.marker(pos, {icon:labelIcon, pane:'obsPane', interactive:false}).addTo(map);
   obsLayers.push(lab);
 }
 
@@ -713,7 +992,21 @@ function updateOverlays(){
   Object.values(charts).forEach(c => c.draw());
   updateTuneValueLabels();
   forceMapAndOverlayRefresh();
-  if(document.getElementById('cloud3dAutoToggle')?.checked){ setTimeout(buildCloud3d, 120); }
+  scheduleCloud3dRebuild();
+}
+
+// 選択時刻に連動して3D雲頂を作り直します。タイルを多数取得するので強めに間引き、
+// 作成中に次の要求が来た場合は完了後にもう一度だけ作り直します。
+let cloud3dRebuildTimer = null, cloud3dBusy = false, cloud3dPending = false;
+function scheduleCloud3dRebuild(){
+  const auto = document.getElementById('cloud3dAutoToggle');
+  if(!auto || !auto.checked) return;
+  clearTimeout(cloud3dRebuildTimer);
+  cloud3dRebuildTimer = setTimeout(() => {
+    cloud3dRebuildTimer = null;
+    if(cloud3dBusy){ cloud3dPending = true; return; }
+    buildCloud3d();
+  }, 600);
 }
 
 // ===== 選択時刻の変更（スライダー／グラフ面のドラッグ共通） =====
@@ -897,6 +1190,16 @@ function addOneHimawariLayer(map, time, productKey){
   const product = HIMAWARI_PRODUCTS[productKey];
   if(!product) return;
   const url = makeHimawariTileUrl(time, product);
+  if(map === mapJapan){
+    // 日本全土は天気図の図法に再投影して重ねます（ひまわりJPタイルはz=6が原寸）
+    addWarpedOverlay(map, {
+      name:'himawari', extra:`${productKey}|${time.base}|${time.valid}`, z:6,
+      pane:product.pane, zIndex:product.zIndex,
+      opacity:+document.getElementById('himawariOpacity').value, store:himawariLayers,
+      tileUrl:(z,x,y) => url.replace('{z}', z).replace('{x}', x).replace('{y}', y)
+    }).then(() => { himawariTileStats.loaded++; updateDebugLine(); });
+    return;
+  }
   const layer = L.tileLayer(url, {
     minZoom:3,
     maxZoom:18,
@@ -927,7 +1230,7 @@ function addHimawariLayers(map, time){
 
 async function buildCloudTopMosaic(sat, map){
   const tileZ = 6; // 気象庁ひまわりJPタイルの標準解像度として扱う
-  const b = map.getBounds();
+  const b = mapGeoBounds(map); // 日本全土地図は天気図座標系なので実緯度経度に戻す
   const nw = lonLatToTileXY(b.getWest(), b.getNorth(), tileZ);
   const se = lonLatToTileXY(b.getEast(), b.getSouth(), tileZ);
   let minX = Math.min(nw.x, se.x), maxX = Math.max(nw.x, se.x);
@@ -1212,6 +1515,7 @@ function createCloud3dMeshFromCanvas(canvas, mosaic=null, baseCanvas=null){
 
 async function buildCloud3d(){
   const status = document.getElementById('cloud3dStatus');
+  cloud3dBusy = true;
   try{
     updateCloud3dLabels();
     const row = timeRows[selectedIndex];
@@ -1231,6 +1535,10 @@ async function buildCloud3d(){
   }catch(e){
     console.error(e);
     status.textContent = '3D作成に失敗しました：' + e.message;
+  }finally{
+    cloud3dBusy = false;
+    // 作成中に時刻が変わっていた場合は、最新の時刻でもう一度だけ作り直します。
+    if(cloud3dPending){ cloud3dPending = false; scheduleCloud3dRebuild(); }
   }
 }
 
@@ -1303,7 +1611,7 @@ async function reloadAll(){
     const reg = REGIONS[document.getElementById('regionSelect').value];
     document.getElementById('regionTitle').textContent = reg.name;
     mapRegion.setView([reg.lat, reg.lon], reg.zoom);
-    setTimeout(() => { mapJapan.setZoom(4, {animate:false}); mapJapan.invalidateSize(true); mapRegion.invalidateSize(true); }, 0);
+    setTimeout(() => { mapJapan.invalidateSize(true); mapRegion.invalidateSize(true); fitJapanToWeatherMap(); }, 0);
     const [jpRows, regRows] = await Promise.all([loadWeatherSeries(JAPAN_POINT), loadWeatherSeries(reg)]);
     timeRows = regRows;
     selectedIndex = Math.min(regRows.findIndex(r => r.date >= new Date()), regRows.length-1);
@@ -1311,7 +1619,7 @@ async function reloadAll(){
     const slider = document.getElementById('timeSlider'); slider.min = 0; slider.max = regRows.length-1; slider.value = selectedIndex; slider.disabled = false;
     buildChart('chartJapan', jpRows, '日本全土の代表点：東京（1日前〜明日）');
     buildChart('chartRegion', regRows, `${reg.name}（1日前〜明日）`);
-    mapJapan.setZoom(4, {animate:false});
+    fitJapanToWeatherMap();
     updateOverlays();
     reloadWbgt(); // 暑さ指数は非同期で取得し、取得でき次第オーバーレイを更新します。
   }catch(e){
@@ -1327,8 +1635,18 @@ document.addEventListener('DOMContentLoaded', () => {
   enableChartScrub('chartRegion');
   document.getElementById('regionSelect').addEventListener('change', reloadAll);
   document.getElementById('reloadBtn').addEventListener('click', reloadAll);
-  ['rainToggle','chartToggle','himawariVisibleToggle','himawariCloudTopToggle','himawariOpacity','rainOpacity','wxOpacity','wxScaleX','wxScaleY','wxLonOffset','wxLatOffset','wxRotate','rainEnhance','radarMode'].forEach(id => {
+  ['rainToggle','chartToggle','himawariVisibleToggle','himawariCloudTopToggle','himawariOpacity','rainOpacity','wxOpacity','rainEnhance','radarMode'].forEach(id => {
     document.getElementById(id).addEventListener('input', () => { updateTuneValueLabels(); updateOverlays(); });
+  });
+  // 合わせ具合を変えたら、背景地図とオーバーレイを再投影し直します（重いのでchangeで実行）。
+  ['wxScale','wxShiftX','wxShiftY'].forEach(id => {
+    document.getElementById(id).addEventListener('input', updateTuneValueLabels);
+    document.getElementById(id).addEventListener('change', () => {
+      updateTuneValueLabels(); rebuildJapanBase(); updateOverlays();
+    });
+  });
+  document.getElementById('cloud3dAutoToggle').addEventListener('change', () => {
+    if(document.getElementById('cloud3dAutoToggle').checked) scheduleCloud3dRebuild();
   });
   document.getElementById('wxResetBtn').addEventListener('click', resetWeatherMapTuning);
   document.getElementById('buildCloud3dBtn').addEventListener('click', buildCloud3d);
@@ -1341,8 +1659,8 @@ document.addEventListener('DOMContentLoaded', () => {
   ['cloud3dHeightScale','cloud3dResolution','cloud3dWireToggle','cloud3dOpacity','cloud3dBaseOpacity','cloud3dTarget'].forEach(id => {
     document.getElementById(id).addEventListener('input', () => { updateCloud3dLabels(); if(cloud3d.lastCanvas && id !== 'cloud3dTarget') refreshCloud3dMaterial(); });
   });
-  window.addEventListener('resize', () => { forceMapAndOverlayRefresh(); resizeCloud3dRenderer(); });
-  window.addEventListener('load', () => setTimeout(forceMapAndOverlayRefresh, 250));
+  window.addEventListener('resize', () => { applyMapAspect(); forceMapAndOverlayRefresh(); fitJapanToWeatherMap({force:true}); resizeCloud3dRenderer(); });
+  window.addEventListener('load', () => setTimeout(() => { applyMapAspect(); forceMapAndOverlayRefresh(); fitJapanToWeatherMap({force:true}); }, 250));
   updateTuneValueLabels();
   updateCloud3dLabels();
   renderWbgtLegend();
